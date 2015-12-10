@@ -1,0 +1,917 @@
+library ieee;
+use ieee.std_logic_1164.all;
+use ieee.numeric_std.all;
+
+entity MOD_QPSK_16QAM is
+generic(kOutSize : positive := 14);
+port(
+		aReset : in std_logic;
+		--mode : in std_logic_vector(1 downto 0);
+		--TCXO_1944 : in std_logic;
+		--DA_DCO : in std_logic;
+		--DA_sdo : in std_logic;
+		clk_50	: in std_logic;
+		clk_150	: in std_logic;
+	
+		IFData_0	: OUT std_logic_vector(kOutSize - 1 downto 0);
+		IFData_1	: OUT std_logic_vector(kOutSize - 1 downto 0);
+		IFData_2	: OUT std_logic_vector(kOutSize - 1 downto 0);
+		IFData_3    : OUT std_logic_vector(kOutSize - 1 downto 0);
+		IFData_4	: OUT std_logic_vector(kOutSize - 1 downto 0);
+		IFData_5    : OUT std_logic_vector(kOutSize - 1 downto 0);
+		IFData_6	: OUT std_logic_vector(kOutSize - 1 downto 0);
+		IFData_7    : OUT std_logic_vector(kOutSize - 1 downto 0)
+		);
+end entity;
+
+architecture rtl of MOD_QPSK_16QAM is
+
+component lpm_constant_mode IS
+	PORT
+	(
+		result		: OUT STD_LOGIC_VECTOR (1 DOWNTO 0)
+	);
+END component;
+
+component PLL_TCXO IS
+	PORT
+	(
+		inclk0		: IN STD_LOGIC  := '0';
+		c0		: OUT STD_LOGIC ;
+		c1		: OUT STD_LOGIC ;
+		c2		: OUT STD_LOGIC ;
+		c3		: OUT STD_LOGIC
+	);
+END component;
+
+
+
+component PLL_DCO IS
+	PORT
+	(
+		inclk0		: IN STD_LOGIC  := '0';
+		c0		: OUT STD_LOGIC ;
+		c1		: OUT STD_LOGIC ;
+		c2		: OUT STD_LOGIC
+	);
+END component;
+
+component CreateReset2 is
+        port (
+                Clk_in          : in std_logic;
+                --reset_pin       : in std_logic;
+				 
+                aReset	: out std_logic
+                );
+end   component; 
+
+component SPI_AD9739 is
+
+port (
+
+	clk : in std_logic;   
+	reset : in std_logic;
+	sdi : in std_logic;
+
+
+	sclk : out std_logic;  
+	cs : out std_logic;
+	sdo : out std_logic    
+
+);
+end   component; 
+
+component PN_gen4 is
+port(
+		aReset 	: in std_logic;
+		clk		: in std_logic;
+		PN_Dataout	: out std_logic_vector(3 downto 0)
+		);
+end component;
+
+component PN_gen8 is
+port(
+		aReset 	: in std_logic;
+		clk		: in std_logic;
+		PN_Dataout	: out std_logic_vector(7 downto 0)
+		);
+end component;
+
+
+component ldpc_encode is
+generic( kInSize : positive := 8);
+port(
+		aReset : in std_logic;
+		clkin : in std_logic;
+		clkout : in std_logic;
+		enablein : in std_logic;
+		datain : in std_logic_vector(7 downto 0);
+		
+		ldpc_out : out std_logic_vector(7 downto 0);
+		o_val : out std_logic);
+end component;
+
+component mapping_QPSK is
+generic(
+			kOutSize : positive := 14
+			);
+port(
+		aReset : in std_logic;
+		clk : in std_logic;
+		val_in : in std_logic;
+		datain : in std_logic_vector(3 downto 0);
+		dataout_I0 : out std_logic_vector(kOutSize - 1 downto 0);
+		dataout_Q0 : out std_logic_vector(kOutSize - 1 downto 0);
+		dataout_I1 : out std_logic_vector(kOutSize - 1 downto 0);
+		dataout_Q1 : out std_logic_vector(kOutSize - 1 downto 0)
+		);
+end component;
+
+component mapping_16QAM is
+generic(
+			kOutSize : positive := 14
+			);
+port(
+		aReset : in std_logic;
+		clkin : in std_logic;
+		clkout : in std_logic;
+		val_in : in std_logic;
+		datain : in std_logic_vector(7 downto 0);
+		dataout_I0 : out std_logic_vector(kOutSize - 1 downto 0);
+		dataout_Q0 : out std_logic_vector(kOutSize - 1 downto 0);
+		dataout_I1 : out std_logic_vector(kOutSize - 1 downto 0);
+		dataout_Q1 : out std_logic_vector(kOutSize - 1 downto 0)
+		);
+end component;
+
+
+component	shapingfilter_p8_MOD	is
+generic(
+		kInSize  : positive :=14;
+		kOutSize : positive :=14);
+port(
+		aReset	: in std_logic;
+		Clk		: in std_logic;
+		cDin0	: in std_logic_vector(kInSize-1 downto 0);
+		cDin1	: in std_logic_vector(kInSize-1 downto 0);
+		cDin2	: in std_logic_vector(kInSize-1 downto 0);
+		cDin3	: in std_logic_vector(kInSize-1 downto 0);
+		cDin4	: in std_logic_vector(kInSize-1 downto 0);
+		cDin5	: in std_logic_vector(kInSize-1 downto 0);
+		cDin6	: in std_logic_vector(kInSize-1 downto 0);
+		cDin7	: in std_logic_vector(kInSize-1 downto 0);
+		cDout0	: out std_logic_vector(kOutSize-1 downto 0);
+		cDout1	: out std_logic_vector(kOutSize-1 downto 0);
+		cDout2	: out std_logic_vector(kOutSize-1 downto 0);
+		cDout3	: out std_logic_vector(kOutSize-1 downto 0);
+		cDout4	: out std_logic_vector(kOutSize-1 downto 0);
+		cDout5	: out std_logic_vector(kOutSize-1 downto 0);
+		cDout6	: out std_logic_vector(kOutSize-1 downto 0);
+		cDout7	: out std_logic_vector(kOutSize-1 downto 0)
+		);
+end	component;
+
+component interpolation_4 is
+generic(
+			kInSize : positive := 14
+			);
+port(
+		aReset	: in std_logic;
+		ClkIn		: in std_logic;
+		ClkOut   : in std_logic;
+		cDin0	: in std_logic_vector(kInSize-1 downto 0);
+		cDin1	: in std_logic_vector(kInSize-1 downto 0);
+		cDin2	: in std_logic_vector(kInSize-1 downto 0);
+		cDin3	: in std_logic_vector(kInSize-1 downto 0);
+		cDin4	: in std_logic_vector(kInSize-1 downto 0);
+		cDin5	: in std_logic_vector(kInSize-1 downto 0);
+		cDin6	: in std_logic_vector(kInSize-1 downto 0);
+		cDin7	: in std_logic_vector(kInSize-1 downto 0);
+		cDout0	: out std_logic_vector(kInSize-1 downto 0);
+		cDout1	: out std_logic_vector(kInSize-1 downto 0);
+		cDout2	: out std_logic_vector(kInSize-1 downto 0);
+		cDout3	: out std_logic_vector(kInSize-1 downto 0);
+		cDout4	: out std_logic_vector(kInSize-1 downto 0);
+		cDout5	: out std_logic_vector(kInSize-1 downto 0);
+		cDout6	: out std_logic_vector(kInSize-1 downto 0);
+		cDout7	: out std_logic_vector(kInSize-1 downto 0)
+		);
+end component;
+
+component interpolation_2 is
+generic(
+			kInSize : positive := 14
+			);
+port(
+		aReset	: in std_logic;
+		ClkIn		: in std_logic;
+		ClkOut   : in std_logic;
+		cDin0	: in std_logic_vector(kInSize-1 downto 0);
+		cDin1	: in std_logic_vector(kInSize-1 downto 0);
+		cDin2	: in std_logic_vector(kInSize-1 downto 0);
+		cDin3	: in std_logic_vector(kInSize-1 downto 0);
+		cDin4	: in std_logic_vector(kInSize-1 downto 0);
+		cDin5	: in std_logic_vector(kInSize-1 downto 0);
+		cDin6	: in std_logic_vector(kInSize-1 downto 0);
+		cDin7	: in std_logic_vector(kInSize-1 downto 0);
+		cDout0	: out std_logic_vector(kInSize-1 downto 0);
+		cDout1	: out std_logic_vector(kInSize-1 downto 0);
+		cDout2	: out std_logic_vector(kInSize-1 downto 0);
+		cDout3	: out std_logic_vector(kInSize-1 downto 0);
+		cDout4	: out std_logic_vector(kInSize-1 downto 0);
+		cDout5	: out std_logic_vector(kInSize-1 downto 0);
+		cDout6	: out std_logic_vector(kInSize-1 downto 0);
+		cDout7	: out std_logic_vector(kInSize-1 downto 0)
+		);
+end component;
+
+component mode_select is
+generic(
+			kInSize : positive := 14
+	);
+port(
+		aReset : in std_logic;
+		clk    : in std_logic;
+		mode	 : in std_logic;
+		dataA0 : in std_logic_vector(kInSize - 1 downto 0);
+		dataA1 : in std_logic_vector(kInSize - 1 downto 0);
+		dataA2 : in std_logic_vector(kInSize - 1 downto 0);
+		dataA3 : in std_logic_vector(kInSize - 1 downto 0);
+		dataA4 : in std_logic_vector(kInSize - 1 downto 0);
+		dataA5 : in std_logic_vector(kInSize - 1 downto 0);
+		dataA6 : in std_logic_vector(kInSize - 1 downto 0);
+		dataA7 : in std_logic_vector(kInSize - 1 downto 0);
+		dataB0 : in std_logic_vector(kInSize - 1 downto 0);
+		dataB1 : in std_logic_vector(kInSize - 1 downto 0);
+		dataB2 : in std_logic_vector(kInSize - 1 downto 0);
+		dataB3 : in std_logic_vector(kInSize - 1 downto 0);
+		dataB4 : in std_logic_vector(kInSize - 1 downto 0);
+		dataB5 : in std_logic_vector(kInSize - 1 downto 0);
+		dataB6 : in std_logic_vector(kInSize - 1 downto 0);
+		dataB7 : in std_logic_vector(kInSize - 1 downto 0);
+		
+		dataout0 : out std_logic_vector(kInSize - 1 downto 0);
+		dataout1 : out std_logic_vector(kInSize - 1 downto 0);
+		dataout2 : out std_logic_vector(kInSize - 1 downto 0);
+		dataout3 : out std_logic_vector(kInSize - 1 downto 0);
+		dataout4 : out std_logic_vector(kInSize - 1 downto 0);
+		dataout5 : out std_logic_vector(kInSize - 1 downto 0);
+		dataout6 : out std_logic_vector(kInSize - 1 downto 0);
+		dataout7 : out std_logic_vector(kInSize - 1 downto 0)
+		);
+end component;
+
+component UpConvert is 
+    generic (
+      kInSize      : positive := 14;
+      kOutSize     : positive := 14;
+      kNCOSize	   : positive := 16
+     );
+    port (
+      aReset            : in std_logic;   
+      Clk               : in std_logic;   
+      pInPhaseIn0       : in std_logic_vector (kInsize-1 downto 0);
+		pInPhaseIn1       : in std_logic_vector (kInsize-1 downto 0);
+		pInPhaseIn2       : in std_logic_vector (kInsize-1 downto 0);
+		pInPhaseIn3       : in std_logic_vector (kInsize-1 downto 0);
+		pInPhaseIn4       : in std_logic_vector (kInsize-1 downto 0);
+		pInPhaseIn5       : in std_logic_vector (kInsize-1 downto 0);
+		pInPhaseIn6       : in std_logic_vector (kInsize-1 downto 0);
+		pInPhaseIn7       : in std_logic_vector (kInsize-1 downto 0);
+		
+      pQuadPhaseIn0     : in std_logic_vector (kInsize-1 downto 0);
+		pQuadPhaseIn1     : in std_logic_vector (kInsize-1 downto 0);
+		pQuadPhaseIn2     : in std_logic_vector (kInsize-1 downto 0);
+		pQuadPhaseIn3     : in std_logic_vector (kInsize-1 downto 0);
+		pQuadPhaseIn4     : in std_logic_vector (kInsize-1 downto 0);
+		pQuadPhaseIn5     : in std_logic_vector (kInsize-1 downto 0);
+		pQuadPhaseIn6     : in std_logic_vector (kInsize-1 downto 0);
+		pQuadPhaseIn7     : in std_logic_vector (kInsize-1 downto 0);
+		
+      
+	   IFData_0			: out std_logic_vector (kOutsize-1 downto 0);
+	   IFData_1			: out std_logic_vector (kOutsize-1 downto 0);
+		IFData_2			: out std_logic_vector (kOutsize-1 downto 0);
+		IFData_3			: out std_logic_vector (kOutsize-1 downto 0);
+		IFData_4			: out std_logic_vector (kOutsize-1 downto 0);
+		IFData_5			: out std_logic_vector (kOutsize-1 downto 0);
+		IFData_6			: out std_logic_vector (kOutsize-1 downto 0);
+		IFData_7			: out std_logic_vector (kOutsize-1 downto 0)
+     );
+end component;
+
+component datareg4_2 is
+	generic(
+		kInSize	 : positive := 14;
+		kOutSize : positive := 60
+	   );
+	port(
+		aReset	: in  std_logic;
+		clk	: in  std_logic;
+		cDin0	: in  std_logic_vector (kInSize-1 downto 0);
+		cDin1	: in  std_logic_vector (kInSize-1 downto 0);
+		cDin2	: in  std_logic_vector (kInSize-1 downto 0);
+		cDin3	: in  std_logic_vector (kInSize-1 downto 0);
+		cDout	: out std_logic_vector (kOutSize-1 downto 0)
+		
+		);
+end component;
+
+component datareg4 is
+	generic(
+		kInSize	 : positive := 14;
+		kOutSize : positive := 56
+	   );
+	port(
+		aReset	: in  std_logic;
+		clk	: in  std_logic;
+		cDin0	: in  std_logic_vector (kInSize-1 downto 0);
+		cDin1	: in  std_logic_vector (kInSize-1 downto 0);
+		cDin2	: in  std_logic_vector (kInSize-1 downto 0);
+		cDin3	: in  std_logic_vector (kInSize-1 downto 0);
+		cDout	: out std_logic_vector (kOutSize-1 downto 0)
+		
+		);
+end component;
+
+component lvds_tx_DA IS
+	PORT
+	(
+		tx_in		: IN STD_LOGIC_VECTOR (115 DOWNTO 0);
+		tx_inclock		: IN STD_LOGIC ;
+		tx_out		: OUT STD_LOGIC_VECTOR (28 DOWNTO 0)
+	);
+END component;
+
+
+signal PN_Dataout_622,PN_Dataout_1244 : std_logic_vector(7 downto 0);
+signal PN_Dataout_155 : std_logic_vector(7 downto 0);
+signal data_mapping_I0_155,data_mapping_Q0_155,data_mapping_I1_155,data_mapping_Q1_155 : std_logic_vector(kOutSize - 1 downto 0);
+signal data_mapping_I0_622,data_mapping_Q0_622,data_mapping_I1_622,data_mapping_Q1_622 : std_logic_vector(kOutSize - 1 downto 0);
+signal data_mapping_I0_1244,data_mapping_Q0_1244,data_mapping_I1_1244,data_mapping_Q1_1244 : std_logic_vector(kOutSize - 1 downto 0);
+signal data_shaping_I0_155,data_shaping_I1_155,data_shaping_I2_155,data_shaping_I3_155 : std_logic_vector(kOutSize - 1 downto 0);
+signal data_shaping_I4_155,data_shaping_I5_155,data_shaping_I6_155,data_shaping_I7_155 : std_logic_vector(kOutSize - 1 downto 0);
+signal data_shaping_Q0_155,data_shaping_Q1_155,data_shaping_Q2_155,data_shaping_Q3_155 : std_logic_vector(kOutSize - 1 downto 0);
+signal data_shaping_Q4_155,data_shaping_Q5_155,data_shaping_Q6_155,data_shaping_Q7_155 : std_logic_vector(kOutSize - 1 downto 0);
+signal data_shaping_I0_155_inter,data_shaping_I1_155_inter,data_shaping_I2_155_inter,data_shaping_I3_155_inter : std_logic_vector(kOutSize - 1 downto 0);
+signal data_shaping_I4_155_inter,data_shaping_I5_155_inter,data_shaping_I6_155_inter,data_shaping_I7_155_inter : std_logic_vector(kOutSize - 1 downto 0);
+signal data_shaping_Q0_155_inter,data_shaping_Q1_155_inter,data_shaping_Q2_155_inter,data_shaping_Q3_155_inter : std_logic_vector(kOutSize - 1 downto 0);
+signal data_shaping_Q4_155_inter,data_shaping_Q5_155_inter,data_shaping_Q6_155_inter,data_shaping_Q7_155_inter : std_logic_vector(kOutSize - 1 downto 0);
+signal data_shaping_I0_622,data_shaping_I1_622,data_shaping_I2_622,data_shaping_I3_622 : std_logic_vector(kOutSize - 1 downto 0);
+signal data_shaping_I4_622,data_shaping_I5_622,data_shaping_I6_622,data_shaping_I7_622 : std_logic_vector(kOutSize - 1 downto 0);
+signal data_shaping_Q0_622,data_shaping_Q1_622,data_shaping_Q2_622,data_shaping_Q3_622 : std_logic_vector(kOutSize - 1 downto 0);
+signal data_shaping_Q4_622,data_shaping_Q5_622,data_shaping_Q6_622,data_shaping_Q7_622 : std_logic_vector(kOutSize - 1 downto 0);
+signal data_shaping_I0_622_inter,data_shaping_I1_622_inter,data_shaping_I2_622_inter,data_shaping_I3_622_inter : std_logic_vector(kOutSize - 1 downto 0);
+signal data_shaping_I4_622_inter,data_shaping_I5_622_inter,data_shaping_I6_622_inter,data_shaping_I7_622_inter : std_logic_vector(kOutSize - 1 downto 0);
+signal data_shaping_Q0_622_inter,data_shaping_Q1_622_inter,data_shaping_Q2_622_inter,data_shaping_Q3_622_inter : std_logic_vector(kOutSize - 1 downto 0);
+signal data_shaping_Q4_622_inter,data_shaping_Q5_622_inter,data_shaping_Q6_622_inter,data_shaping_Q7_622_inter : std_logic_vector(kOutSize - 1 downto 0);
+signal data_shaping_I0_1244,data_shaping_I1_1244,data_shaping_I2_1244,data_shaping_I3_1244 : std_logic_vector(kOutSize - 1 downto 0);
+signal data_shaping_I4_1244,data_shaping_I5_1244,data_shaping_I6_1244,data_shaping_I7_1244 : std_logic_vector(kOutSize - 1 downto 0);
+signal data_shaping_Q0_1244,data_shaping_Q1_1244,data_shaping_Q2_1244,data_shaping_Q3_1244 : std_logic_vector(kOutSize - 1 downto 0);
+signal data_shaping_Q4_1244,data_shaping_Q5_1244,data_shaping_Q6_1244,data_shaping_Q7_1244 : std_logic_vector(kOutSize - 1 downto 0);
+signal data_shaping_I0,data_shaping_I1,data_shaping_I2,data_shaping_I3 : std_logic_vector(kOutSize - 1 downto 0);
+signal data_shaping_I4,data_shaping_I5,data_shaping_I6,data_shaping_I7 : std_logic_vector(kOutSize - 1 downto 0);
+signal data_shaping_Q0,data_shaping_Q1,data_shaping_Q2,data_shaping_Q3 : std_logic_vector(kOutSize - 1 downto 0);
+signal data_shaping_Q4,data_shaping_Q5,data_shaping_Q6,data_shaping_Q7 : std_logic_vector(kOutSize - 1 downto 0);
+--signal IFData_0,IFData_1,IFData_2,IFData_3,IFData_4,IFData_5,IFData_6,IFData_7 : std_logic_vector(kOutSize - 1 downto 0);
+signal clk_sample_800,clk_sample_1600,clk_sample_200 : std_logic;
+signal lvds_in : std_logic_vector(115 downto 0);
+--signal tx_out : std_logic_vector(28 downto 0);
+signal clk_7776,clk_15552,clk_2M,clk_1944 : std_logic;
+--signal aReset,aReset_gen,ldpc_val : std_logic;
+signal ldpc_out : std_logic_vector(7 downto 0);
+signal PN_Dataout_622_mux : std_logic_vector(7 downto 0);
+--signal mode : std_logic_vector(1 downto 0);
+
+begin
+
+DA_RESTART <= '0';
+
+--lpm_constant_mode_inst : lpm_constant_mode
+--	PORT map
+--	(
+--		result		=> mode
+--	);
+
+PLL_TCXO_inst : PLL_TCXO
+	PORT map
+	(
+		inclk0		=> TCXO_1944,
+		c0		=> clk_1944,
+		c1		=> clk_2M,
+		c2		=> clk_7776,
+		c3		=> clk_3888_o
+		);
+
+clk_7776_o <= clk_7776;
+clk_1944_o <= clk_1944;
+
+
+PLL_DCO_inst : PLL_DCO 
+	PORT map
+	(
+		inclk0		=> DA_DCO,
+		c0		=> clk_sample_1600,
+		c1    => clk_sample_800,
+		c2    => clk_sample_200
+	);
+	
+-- CreateReset2_inst : CreateReset2
+        -- port  map(
+                -- Clk_in  => clk_sample_1600,
+                -- aReset	=> aReset_gen
+                -- );
+					
+	aReset <= aReset_gen or aReset_SET;	
+	-- aReset <= aReset_gen;	
+
+SPI_AD9739_inst : SPI_AD9739
+port map(
+	clk  => clk_2M,
+	reset => aReset,
+	sdi => DA_sdo,
+
+	sclk => DA_sclk,
+	cs  => DA_cs,
+	sdo => DA_sdio
+); 
+
+--PN_gen8_inst_155M : PN_gen8 
+--port map(
+--		aReset 	=> aReset,
+--		clk		=> clk_1944,
+--		PN_Dataout	=> PN_Dataout_155
+--		);		
+
+
+PN_gen4_inst : PN_gen4 
+port map(
+		aReset 	=> aReset,
+		clk		=> clk_50,
+		PN_Dataout	=> PN_Dataout_4
+		);
+
+-- process(clk_7776)
+-- begin
+	-- if rising_edge(clk_7776) then
+		-- if DataSource_mux='0' then
+			-- PN_Dataout_622_mux <= data_from_GE;
+		-- else
+			-- PN_Dataout_622_mux <= PN_Dataout_622;
+		-- end if;
+	-- end if;
+-- end process;
+--
+-- ldpc_encode_inst : ldpc_encode
+-- generic map(8)
+-- port map(
+		-- aReset => aReset,
+		-- clkin => clk_7776,
+		-- clkout => clk_sample_800,
+		-- enablein => '1',
+		-- datain => PN_Dataout_622_mux,--(0) & PN_Dataout_622(1) & PN_Dataout_622(2) & PN_Dataout_622(3) & PN_Dataout_622(4) & PN_Dataout_622(5) & PN_Dataout_622(6) & PN_Dataout_622(7),
+		
+		-- ldpc_out => ldpc_out,
+		-- o_val => ldpc_val);
+
+mapping_QPSK_inst_155 : mapping_QPSK 
+generic map(14)
+port map(
+		aReset 	=> aReset,
+		clk 	=> clk_50,
+		val_in => '1',
+		datain 	=> PN_Dataout_4(0) & PN_Dataout_4(1) & PN_Dataout_4(2) & PN_Dataout_4(3),
+		dataout_I0 => data_mapping_I0_155,
+		dataout_Q0 => data_mapping_Q0_155,
+		dataout_I1 => data_mapping_I1_155,
+		dataout_Q1 => data_mapping_Q1_155
+		);		
+		
+-- mapping_16QAM_inst_622 : mapping_16QAM 
+-- generic map(14)
+-- port map(
+		-- aReset 	=> aReset,
+		-- clkin 	=> clk_sample_800,
+		-- clkout 	=> clk_sample_800,
+		-- val_in => ldpc_val,
+		-- datain 	=> ldpc_out,--(0) & ldpc_out(1) & ldpc_out(2) & ldpc_out(3) & ldpc_out(4) & ldpc_out(5) & ldpc_out(6) & ldpc_out(7),
+		-- dataout_I0 => data_mapping_I0_622,
+		-- dataout_Q0 => data_mapping_Q0_622,
+		-- dataout_I1 => data_mapping_I1_622,
+		-- dataout_Q1 => data_mapping_Q1_622
+		-- );
+
+--mapping_16QAM_inst_1244 : mapping_16QAM 
+--generic map(14)
+--port map(
+--		aReset 	=> aReset,
+--		clkin 	=> clk_15552,
+--		clkout 	=> clk_sample_1600,
+--		datain 	=> PN_Dataout_1244,
+--		dataout_I0 => data_mapping_I0_1244,
+--		dataout_Q0 => data_mapping_Q0_1244,
+--		dataout_I1 => data_mapping_I1_1244,
+--		dataout_Q1 => data_mapping_Q1_1244
+--		);		
+
+--shapingfilter_p8_instI_155 :	shapingfilter_p8_MOD
+--generic map(
+--		14,
+--		14)
+--port map(
+--		aReset	=> aReset,
+--		Clk		=> clk_sample_200,
+--		cDin0		=> data_mapping_I0_155,
+--		cDin1		=> (others => '0'),
+--		cDin2		=> (others => '0'),
+--		cDin3		=> (others => '0'),
+--		cDin4		=> data_mapping_I1_155,
+--		cDin5		=> (others => '0'),
+--		cDin6		=> (others => '0'),
+--		cDin7		=> (others => '0'),
+--		cDout0	=> data_shaping_I0_155,
+--		cDout1	=> data_shaping_I1_155,
+--		cDout2	=> data_shaping_I2_155,
+--		cDout3	=> data_shaping_I3_155,
+--		cDout4	=> data_shaping_I4_155,
+--		cDout5	=> data_shaping_I5_155,
+--		cDout6	=> data_shaping_I6_155,
+--		cDout7	=> data_shaping_I7_155
+--		);		
+--		
+--shapingfilter_p8_instQ_155 :	shapingfilter_p8_MOD
+--generic map(
+--		14,
+--		14)
+--port map(
+--		aReset	=> aReset,
+--		Clk		=> clk_sample_200,
+--		cDin0		=> data_mapping_Q0_155,
+--		cDin1		=> (others => '0'),
+--		cDin2		=> (others => '0'),
+--		cDin3		=> (others => '0'),
+--		cDin4		=> data_mapping_Q1_155,
+--		cDin5		=> (others => '0'),
+--		cDin6		=> (others => '0'),
+--		cDin7		=> (others => '0'),
+--		cDout0	=> data_shaping_Q0_155,
+--		cDout1	=> data_shaping_Q1_155,
+--		cDout2	=> data_shaping_Q2_155,
+--		cDout3	=> data_shaping_Q3_155,
+--		cDout4	=> data_shaping_Q4_155,
+--		cDout5	=> data_shaping_Q5_155,
+--		cDout6	=> data_shaping_Q6_155,
+--		cDout7	=> data_shaping_Q7_155
+--		);	
+		
+shapingfilter_p8_instI_622 :	shapingfilter_p8_MOD
+generic map(
+		14,
+		14)
+port map(
+		aReset	=> aReset,
+		Clk		=> clk_50,
+		cDin0		=> data_mapping_I0_155,
+		cDin1		=> (others => '0'),
+		cDin2		=> (others => '0'),
+		cDin3		=> (others => '0'),
+		cDin4		=> data_mapping_I1_155,
+		cDin5		=> (others => '0'),
+		cDin6		=> (others => '0'),
+		cDin7		=> (others => '0'),
+		cDout0	=> data_shaping_I0_155,
+		cDout1	=> data_shaping_I1_155,
+		cDout2	=> data_shaping_I2_155,
+		cDout3	=> data_shaping_I3_155,
+		cDout4	=> data_shaping_I4_155,
+		cDout5	=> data_shaping_I5_155,
+		cDout6	=> data_shaping_I6_155,
+		cDout7	=> data_shaping_I7_155
+		);		
+		
+shapingfilter_p8_instQ_622 :	shapingfilter_p8_MOD
+generic map(
+		14,
+		14)
+port map(
+		aReset	=> aReset,
+		Clk		=> clk_50,
+		cDin0		=> data_mapping_Q0_155,
+		cDin1		=> (others => '0'),
+		cDin2		=> (others => '0'),
+		cDin3		=> (others => '0'),
+		cDin4		=> data_mapping_Q1_155,
+		cDin5		=> (others => '0'),
+		cDin6		=> (others => '0'),
+		cDin7		=> (others => '0'),
+		cDout0	=> data_shaping_Q0_155,
+		cDout1	=> data_shaping_Q1_155,
+		cDout2	=> data_shaping_Q2_155,
+		cDout3	=> data_shaping_Q3_155,
+		cDout4	=> data_shaping_Q4_155,
+		cDout5	=> data_shaping_Q5_155,
+		cDout6	=> data_shaping_Q6_155,
+		cDout7	=> data_shaping_Q7_155
+		);	
+		
+		
+--shapingfilter_p8_instI_1244 :	shapingfilter_p8_MOD
+--generic map(
+--		14,
+--		14)
+--port map(
+--		aReset	=> aReset,
+--		Clk		=> clk_sample_1600,
+--		cDin0		=> data_mapping_I0_1244,
+--		cDin1		=> (others => '0'),
+--		cDin2		=> (others => '0'),
+--		cDin3		=> (others => '0'),
+--		cDin4		=> data_mapping_I1_1244,
+--		cDin5		=> (others => '0'),
+--		cDin6		=> (others => '0'),
+--		cDin7		=> (others => '0'),
+--		cDout0	=> data_shaping_I0_1244,
+--		cDout1	=> data_shaping_I1_1244,
+--		cDout2	=> data_shaping_I2_1244,
+--		cDout3	=> data_shaping_I3_1244,
+--		cDout4	=> data_shaping_I4_1244,
+--		cDout5	=> data_shaping_I5_1244,
+--		cDout6	=> data_shaping_I6_1244,
+--		cDout7	=> data_shaping_I7_1244
+--		);		
+--		
+--shapingfilter_p8_instQ_1244 :	shapingfilter_p8_MOD
+--generic map(
+--		14,
+--		14)
+--port map(
+--		aReset	=> aReset,
+--		Clk		=> clk_sample_1600,
+--		cDin0		=> data_mapping_Q0_1244,
+--		cDin1		=> (others => '0'),
+--		cDin2		=> (others => '0'),
+--		cDin3		=> (others => '0'),
+--		cDin4		=> data_mapping_Q1_1244,
+--		cDin5		=> (others => '0'),
+--		cDin6		=> (others => '0'),
+--		cDin7		=> (others => '0'),
+--		cDout0	=> data_shaping_Q0_1244,
+--		cDout1	=> data_shaping_Q1_1244,
+--		cDout2	=> data_shaping_Q2_1244,
+--		cDout3	=> data_shaping_Q3_1244,
+--		cDout4	=> data_shaping_Q4_1244,
+--		cDout5	=> data_shaping_Q5_1244,
+--		cDout6	=> data_shaping_Q6_1244,
+--		cDout7	=> data_shaping_Q7_1244
+--		);	
+		
+
+--interpolation_4_InstI : interpolation_4
+--generic map(
+--			14
+--			)
+--port map(
+--		aReset	=> aReset,
+--		ClkIn		=> clk_sample_200,
+--		ClkOut   => clk_sample_1600,
+--		cDin0		=> data_shaping_I0_155,
+--		cDin1		=> data_shaping_I1_155,
+--		cDin2		=> data_shaping_I2_155,
+--		cDin3		=> data_shaping_I3_155,
+--		cDin4		=> data_shaping_I4_155,
+--		cDin5		=> data_shaping_I5_155,
+--		cDin6		=> data_shaping_I6_155,
+--		cDin7		=> data_shaping_I7_155,
+--		cDout0	=> data_shaping_I0_155_inter,
+--		cDout1	=> data_shaping_I1_155_inter,
+--		cDout2	=> data_shaping_I2_155_inter,
+--		cDout3	=> data_shaping_I3_155_inter,
+--		cDout4	=> data_shaping_I4_155_inter,
+--		cDout5	=> data_shaping_I5_155_inter,
+--		cDout6	=> data_shaping_I6_155_inter,
+--		cDout7	=> data_shaping_I7_155_inter
+--		);	
+--
+--interpolation_4_InstQ : interpolation_4
+--generic map(
+--			14
+--			)
+--port map(
+--		aReset	=> aReset,
+--		ClkIn		=> clk_sample_200,
+--		ClkOut   => clk_sample_1600,
+--		cDin0		=> data_shaping_Q0_155,
+--		cDin1		=> data_shaping_Q1_155,
+--		cDin2		=> data_shaping_Q2_155,
+--		cDin3		=> data_shaping_Q3_155,
+--		cDin4		=> data_shaping_Q4_155,
+--		cDin5		=> data_shaping_Q5_155,
+--		cDin6		=> data_shaping_Q6_155,
+--		cDin7		=> data_shaping_Q7_155,
+--		cDout0	=> data_shaping_Q0_155_inter,
+--		cDout1	=> data_shaping_Q1_155_inter,
+--		cDout2	=> data_shaping_Q2_155_inter,
+--		cDout3	=> data_shaping_Q3_155_inter,
+--		cDout4	=> data_shaping_Q4_155_inter,
+--		cDout5	=> data_shaping_Q5_155_inter,
+--		cDout6	=> data_shaping_Q6_155_inter,
+--		cDout7	=> data_shaping_Q7_155_inter
+--		);				
+		
+		
+interpolation_2_InstI : interpolation_2
+generic map(
+			14
+			)
+port map(
+		aReset	=> aReset,
+		ClkIn		=> clk_50,
+		ClkOut   => clk_150,
+		cDin0		=> data_shaping_I0_155,
+		cDin1		=> data_shaping_I1_155,
+		cDin2		=> data_shaping_I2_155,
+		cDin3		=> data_shaping_I3_155,
+		cDin4		=> data_shaping_I4_155,
+		cDin5		=> data_shaping_I5_155,
+		cDin6		=> data_shaping_I6_155,
+		cDin7		=> data_shaping_I7_155,
+		cDout0	=> data_shaping_I0_155_inter,
+		cDout1	=> data_shaping_I1_155_inter,
+		cDout2	=> data_shaping_I2_155_inter,
+		cDout3	=> data_shaping_I3_155_inter,
+		cDout4	=> data_shaping_I4_155_inter,
+		cDout5	=> data_shaping_I5_155_inter,
+		cDout6	=> data_shaping_I6_155_inter,
+		cDout7	=> data_shaping_I7_155_inter
+		);	
+
+interpolation_2_InstQ : interpolation_2
+generic map(
+			14
+			)
+port map(
+		aReset	=> aReset,
+		ClkIn		=> clk_50,
+		ClkOut   => clk_150,
+		cDin0		=> data_shaping_Q0_155,
+		cDin1		=> data_shaping_Q1_155,
+		cDin2		=> data_shaping_Q2_155,
+		cDin3		=> data_shaping_Q3_155,
+		cDin4		=> data_shaping_Q4_155,
+		cDin5		=> data_shaping_Q5_155,
+		cDin6		=> data_shaping_Q6_155,
+		cDin7		=> data_shaping_Q7_155,
+		cDout0	=> data_shaping_Q0_155_inter,
+		cDout1	=> data_shaping_Q1_155_inter,
+		cDout2	=> data_shaping_Q2_155_inter,
+		cDout3	=> data_shaping_Q3_155_inter,
+		cDout4	=> data_shaping_Q4_155_inter,
+		cDout5	=> data_shaping_Q5_155_inter,
+		cDout6	=> data_shaping_Q6_155_inter,
+		cDout7	=> data_shaping_Q7_155_inter
+		);		
+	
+
+--mode_select_instI : mode_select
+--generic map(14)
+--port map(
+--		aReset => aReset,
+--		clk    => clk_sample_1600,
+--		mode	 => mode(0),
+--		dataA0 => data_shaping_I0_622_inter,
+--		dataA1 => data_shaping_I1_622_inter,
+--		dataA2 => data_shaping_I2_622_inter,
+--		dataA3 => data_shaping_I3_622_inter,
+--		dataA4 => data_shaping_I4_622_inter,
+--		dataA5 => data_shaping_I5_622_inter,
+--		dataA6 => data_shaping_I6_622_inter,
+--		dataA7 => data_shaping_I7_622_inter,
+--		dataB0 => data_shaping_I0_155_inter,
+--		dataB1 => data_shaping_I1_155_inter,
+--		dataB2 => data_shaping_I2_155_inter,
+--		dataB3 => data_shaping_I3_155_inter,
+--		dataB4 => data_shaping_I4_155_inter,
+--		dataB5 => data_shaping_I5_155_inter,
+--		dataB6 => data_shaping_I6_155_inter,
+--		dataB7 => data_shaping_I7_155_inter,
+--		
+--		dataout0 => data_shaping_I0,
+--		dataout1 => data_shaping_I1,
+--		dataout2 => data_shaping_I2,
+--		dataout3 => data_shaping_I3,
+--		dataout4 => data_shaping_I4,
+--		dataout5 => data_shaping_I5,
+--		dataout6 => data_shaping_I6,
+--		dataout7 => data_shaping_I7
+--		);
+--
+--mode_select_instQ : mode_select
+--generic map(14)
+--port map(
+--		aReset => aReset,
+--		clk    => clk_sample_1600,
+--		mode	 => mode(0),
+--		dataA0 => data_shaping_Q0_622_inter,
+--		dataA1 => data_shaping_Q1_622_inter,
+--		dataA2 => data_shaping_Q2_622_inter,
+--		dataA3 => data_shaping_Q3_622_inter,
+--		dataA4 => data_shaping_Q4_622_inter,
+--		dataA5 => data_shaping_Q5_622_inter,
+--		dataA6 => data_shaping_Q6_622_inter,
+--		dataA7 => data_shaping_Q7_622_inter,
+--		dataB0 => data_shaping_Q0_155_inter,
+--		dataB1 => data_shaping_Q1_155_inter,
+--		dataB2 => data_shaping_Q2_155_inter,
+--		dataB3 => data_shaping_Q3_155_inter,
+--		dataB4 => data_shaping_Q4_155_inter,
+--		dataB5 => data_shaping_Q5_155_inter,
+--		dataB6 => data_shaping_Q6_155_inter,
+--		dataB7 => data_shaping_Q7_155_inter,
+--		
+--		dataout0 => data_shaping_Q0,
+--		dataout1 => data_shaping_Q1,
+--		dataout2 => data_shaping_Q2,
+--		dataout3 => data_shaping_Q3,
+--		dataout4 => data_shaping_Q4,
+--		dataout5 => data_shaping_Q5,
+--		dataout6 => data_shaping_Q6,
+--		dataout7 => data_shaping_Q7
+--		);	
+		
+UpConvert_inst : UpConvert 
+    generic map(
+      14,
+      14,
+      16
+     )
+    port map(
+      aReset            => aReset,
+      Clk               => clk_150,
+      pInPhaseIn0         => data_shaping_I0_155_inter,
+		pInPhaseIn1       => data_shaping_I1_155_inter,
+		pInPhaseIn2       => data_shaping_I2_155_inter,
+		pInPhaseIn3       => data_shaping_I3_155_inter,
+		pInPhaseIn4       => data_shaping_I4_155_inter,
+		pInPhaseIn5       => data_shaping_I5_155_inter,
+		pInPhaseIn6       => data_shaping_I6_155_inter,
+		pInPhaseIn7       => data_shaping_I7_155_inter,
+		
+      pQuadPhaseIn0       => data_shaping_Q0_155_inter,
+		pQuadPhaseIn1     => data_shaping_Q1_155_inter,
+		pQuadPhaseIn2     => data_shaping_Q2_155_inter,
+		pQuadPhaseIn3     => data_shaping_Q3_155_inter,
+		pQuadPhaseIn4     => data_shaping_Q4_155_inter,
+		pQuadPhaseIn5     => data_shaping_Q5_155_inter,
+		pQuadPhaseIn6     => data_shaping_Q6_155_inter,
+		pQuadPhaseIn7     => data_shaping_Q7_155_inter,
+		
+      
+	   IFData_0				=> IFData_0,
+	   IFData_1				=> IFData_1,
+		IFData_2			=> IFData_2,
+		IFData_3			=> IFData_3,
+		IFData_4			=> IFData_4,
+		IFData_5			=> IFData_5,
+		IFData_6			=> IFData_6,
+		IFData_7			=> IFData_7
+     );
+
+datareg4_2_inst : datareg4_2
+	generic map(
+		14,
+		60
+	   )
+	port map(
+		aReset	=> aReset,
+		clk	=> clk_150,
+		cDin0	=> IFData_0,
+		cDin1	=> IFData_2,
+		cDin2	=> IFData_4,
+		cDin3	=> IFData_6,
+		cDout	=> lvds_in(115 downto 56)	
+		);	  
+
+datareg4_inst : datareg4
+	generic map(
+		14,
+		56
+	   )
+	port map(
+		aReset	=> aReset,
+		clk	=> clk_150,
+		cDin0	=> IFData_1,
+		cDin1	=> IFData_3,
+		cDin2	=> IFData_5,
+		cDin3	=> IFData_7,
+		cDout	=> lvds_in(55 downto 0)	
+		);	  		
+		
+lvds_tx_DA_inst : lvds_tx_DA 
+	PORT map
+	(
+		tx_in		=> lvds_in,
+		tx_inclock		=> clk_150,
+		tx_out		=> tx_out
+	);
+	  
+end rtl;

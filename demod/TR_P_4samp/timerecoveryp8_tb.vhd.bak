@@ -1,0 +1,274 @@
+LIBRARY ieee  ; 
+LIBRARY std  ; 
+USE ieee.numeric_std.all  ; 
+USE ieee.std_logic_1164.all  ; 
+USE std.textio.all  ; 
+ENTITY timerecoveryp8_tb  IS 
+  GENERIC (
+    kcountwidth  : positive   := 4 ;  --4
+    kkpsize  : positive   := 3 ;  
+    kerrorwidth  : positive   := 16 ;  
+    kdatawidth  : positive   := 8 ;  
+    kkisize  : positive   := 3 ;  
+    kdelay  : positive   := 9 ;  
+    kdecimaterate  : positive   := 13 ); 
+END ; 
+ 
+ARCHITECTURE timerecoveryp8_tb_arch OF timerecoveryp8_tb IS
+  SIGNAL sdataquadphase7   :  signed (kdatawidth - 1 downto 0)  ; 
+  SIGNAL sdatainphase3   :  signed (kdatawidth - 1 downto 0)  ; 
+  SIGNAL sdatainphase4   :  signed (kdatawidth - 1 downto 0)  ; 
+  SIGNAL sdatainphase5   :  signed (kdatawidth - 1 downto 0)  ; 
+  SIGNAL sdatainphase6   :  signed (kdatawidth - 1 downto 0)  ; 
+  SIGNAL sdatainphase7   :  signed (kdatawidth - 1 downto 0)  ; 
+  SIGNAL bpsk_qpsk   :  std_logic  ; 
+  SIGNAL squadphaseout0   :  signed (kdatawidth - 1 downto 0)  ; 
+  SIGNAL squadphaseout1   :  signed (kdatawidth - 1 downto 0)  ; 
+  SIGNAL clk_in   :  std_logic  ; 
+  SIGNAL sdataquadphase0   :  signed (kdatawidth - 1 downto 0)  ; 
+  SIGNAL senableout   :  std_logic  ; 
+  SIGNAL sdataquadphase1   :  signed (kdatawidth - 1 downto 0)  ; 
+  SIGNAL senable   :  std_logic  ; 
+  SIGNAL sinphaseout0   :  signed (kdatawidth - 1 downto 0)  ; 
+  SIGNAL sdataquadphase2   :  signed (kdatawidth - 1 downto 0)  ; 
+  SIGNAL sinphaseout1   :  signed (kdatawidth - 1 downto 0)  ; 
+  SIGNAL sdataquadphase3   :  signed (kdatawidth - 1 downto 0)  ; 
+  SIGNAL areset   :  std_logic  ; 
+  SIGNAL sdataquadphase4   :  signed (kdatawidth - 1 downto 0)  ; 
+  SIGNAL sdatainphase0   :  signed (kdatawidth - 1 downto 0)  ; 
+  SIGNAL sdataquadphase5   :  signed (kdatawidth - 1 downto 0)  ; 
+  SIGNAL sdatainphase1   :  signed (kdatawidth - 1 downto 0)  ; 
+  SIGNAL sdataquadphase6   :  signed (kdatawidth - 1 downto 0)  ; 
+  SIGNAL sdatainphase2   :  signed (kdatawidth - 1 downto 0)  ; 
+  
+  SIGNAL sInPhase_s,sQuadPhase_s   :  signed (kdatawidth - 1 downto 0)  ;
+  SIGNAL clk_s   :  std_logic  ;
+  SIGNAL senableout2   :  std_logic  ; 
+  
+  SIGNAL squadphaseout2   :  signed (kdatawidth - 1 downto 0)  ; 
+  SIGNAL squadphaseout3   :  signed (kdatawidth - 1 downto 0)  ; 
+  SIGNAL sinphaseout2   :  signed (kdatawidth - 1 downto 0)  ; 
+  SIGNAL sinphaseout3   :  signed (kdatawidth - 1 downto 0)  ; 
+  
+  COMPONENT timerecoveryp8_v2
+    GENERIC ( 
+      kcountwidth  : positive ; 
+      kkpsize  : positive ; 
+      kerrorwidth  : positive ; 
+      kdatawidth  : positive ; 
+      kkisize  : positive ; 
+      kdelay  : positive ; 
+      kdecimaterate  : positive  );  
+    PORT ( 
+                aReset          : in std_logic;
+                Clk_in          : in std_logic;
+                sEnable         : in std_logic;
+                
+                sDataInPhase0   : in signed (kDataWidth-1 downto 0);
+                sDataInPhase1   : in signed (kDataWidth-1 downto 0);
+                sDataInPhase2   : in signed (kDataWidth-1 downto 0);
+                sDataInPhase3   : in signed (kDataWidth-1 downto 0);
+                sDataInPhase4   : in signed (kDataWidth-1 downto 0);
+                sDataInPhase5   : in signed (kDataWidth-1 downto 0);
+                sDataInPhase6   : in signed (kDataWidth-1 downto 0);
+                sDataInPhase7   : in signed (kDataWidth-1 downto 0);
+
+                sDataQuadPhase0   : in signed (kDataWidth-1 downto 0);
+                sDataQuadPhase1   : in signed (kDataWidth-1 downto 0);
+                sDataQuadPhase2   : in signed (kDataWidth-1 downto 0);
+                sDataQuadPhase3   : in signed (kDataWidth-1 downto 0);
+                sDataQuadPhase4   : in signed (kDataWidth-1 downto 0);
+                sDataQuadPhase5   : in signed (kDataWidth-1 downto 0);
+                sDataQuadPhase6   : in signed (kDataWidth-1 downto 0);
+                sDataQuadPhase7   : in signed (kDataWidth-1 downto 0);
+                
+                -- recovered symbols
+                sInPhaseOut0      : out signed(kDataWidth-1 downto 0);
+                sInPhaseOut1      : out signed(kDataWidth-1 downto 0);
+                sInPhaseOut2      : out signed(kDataWidth-1 downto 0);
+                sInPhaseOut3      : out signed(kDataWidth-1 downto 0);
+                sQuadPhaseOut0    : out signed(kDataWidth-1 downto 0);
+                sQuadPhaseOut1    : out signed(kDataWidth-1 downto 0);
+                sQuadPhaseOut2    : out signed(kDataWidth-1 downto 0);
+                sQuadPhaseOut3    : out signed(kDataWidth-1 downto 0);
+                sEnableOut        : out std_logic ); 
+  END COMPONENT ; 
+  
+  
+  
+BEGIN
+  DUT  : timerecoveryp8_v2 
+    GENERIC MAP ( 
+      kcountwidth  => kcountwidth  ,
+      kkpsize  => kkpsize  ,
+      kerrorwidth  => kerrorwidth  ,
+      kdatawidth  => kdatawidth  ,
+      kkisize  => kkisize  ,
+      kdelay  => kdelay  ,
+      kdecimaterate  => kdecimaterate   )
+    PORT MAP ( 
+      sdataquadphase7   => sdataquadphase7  ,
+      sdatainphase3   => sdatainphase3  ,
+      sdatainphase4   => sdatainphase4  ,
+      sdatainphase5   => sdatainphase5  ,
+      sdatainphase6   => sdatainphase6  ,
+      sdatainphase7   => sdatainphase7  ,
+      squadphaseout0   => squadphaseout0  ,
+      squadphaseout1   => squadphaseout1  ,
+      squadphaseout2   => squadphaseout2  ,
+      squadphaseout3   => squadphaseout3  ,
+      clk_in   => clk_in  ,
+      sdataquadphase0   => sdataquadphase0  ,
+      senableout   => senableout  ,
+      sdataquadphase1   => sdataquadphase1  ,
+      senable   => '1'  ,
+      sinphaseout0   => sinphaseout0  ,
+      sdataquadphase2   => sdataquadphase2  ,
+      sinphaseout1   => sinphaseout1  ,
+      sinphaseout2   => sinphaseout2  ,
+      sinphaseout3   => sinphaseout3  ,
+      sdataquadphase3   => sdataquadphase3  ,
+      areset   => areset  ,
+      sdataquadphase4   => sdataquadphase4  ,
+      sdatainphase0   => sdatainphase0  ,
+      sdataquadphase5   => sdataquadphase5  ,
+      sdatainphase1   => sdatainphase1  ,
+      sdataquadphase6   => sdataquadphase6  ,
+      sdatainphase2   => sdatainphase2   ) ;
+      
+
+      
+      --process
+     -- begin
+--					clk_s <= '0';
+--					wait for 5 ns;
+--					clk_s <= '1';
+--					wait for 5 ns;
+--			end process;
+					
+			process
+      begin
+      loop
+					clk_in <= '0';
+					wait for 40 ns;
+					clk_in <= '1';
+					wait for 40 ns;		
+					IF (NOW >= 1200 us) THEN WAIT; END IF;
+			end loop;
+			end process;
+      
+      aReset <= '0', '1' after 5 ns,'0' after 250 ns;
+      
+      ReadData: process(aReset, clk_in)
+           
+--           file infile : text open read_mode is "matlab\oversample_data.txt";
+            
+           file infile : text  is in "matlab\DataP8_matlab_gen.txt";
+            variable dl : line;
+            variable InPhase0, QuadPhase0, InPhase1, QuadPhase1, InPhase2, QuadPhase2, InPhase3, QuadPhase3 : integer;
+            variable InPhase4, QuadPhase4, InPhase5, QuadPhase5, InPhase6, QuadPhase6, InPhase7, QuadPhase7  : integer;
+            begin
+            if aReset='1' then
+              sInPhase_s          <= (others => '0');
+              sQuadPhase_s        <= (others => '0');
+              sdatainphase0      <= (others => '0');
+              sdataquadphase0      <= (others => '0');
+              sdatainphase1      <= (others => '0');
+              sdataquadphase1      <= (others => '0');
+              sdatainphase2      <= (others => '0');
+              sdataquadphase2      <= (others => '0');
+              sdatainphase3      <= (others => '0');
+              sdataquadphase3      <= (others => '0');
+              sdatainphase4      <= (others => '0');
+              sdataquadphase4      <= (others => '0');
+              sdatainphase5      <= (others => '0');
+              sdataquadphase5      <= (others => '0');
+              sdatainphase6      <= (others => '0');
+              sdataquadphase6      <= (others => '0');
+              sdatainphase7      <= (others => '0');
+              sdataquadphase7      <= (others => '0');
+            elsif rising_edge(clk_in) then
+              if not endfile(infile) then
+                readline(infile, dl);
+                read(dl, InPhase0);
+                sdatainphase0 <= to_signed(InPhase0,kDataWidth);
+                read(dl, QuadPhase0);
+                sdataquadphase0 <= to_signed(QuadPhase0,kDataWidth);
+                
+               -- readline(infile, dl);
+                read(dl, InPhase1);
+                sdatainphase1 <= to_signed(InPhase1,kDataWidth);
+                read(dl, QuadPhase1);
+                sdataquadphase1 <= to_signed(QuadPhase1,kDataWidth);
+                
+              --  readline(infile, dl);
+                read(dl, InPhase2);
+                sdatainphase2 <= to_signed(InPhase2,kDataWidth);
+                read(dl, QuadPhase2);
+                sdataquadphase2 <= to_signed(QuadPhase2,kDataWidth);
+                
+               -- readline(infile, dl);
+                read(dl, InPhase3);
+                sdatainphase3 <= to_signed(InPhase3,kDataWidth);
+                read(dl, QuadPhase3);
+                sdataquadphase3 <= to_signed(QuadPhase3,kDataWidth);
+                
+              --  readline(infile, dl);
+                read(dl, InPhase4);
+                sdatainphase4 <= to_signed(InPhase4,kDataWidth);
+                read(dl, QuadPhase4);
+                sdataquadphase4 <= to_signed(QuadPhase4,kDataWidth);
+                
+              --  readline(infile, dl);
+                read(dl, InPhase5);
+                sdatainphase5 <= to_signed(InPhase5,kDataWidth);
+                read(dl, QuadPhase5);
+                sdataquadphase5 <= to_signed(QuadPhase5,kDataWidth);
+                
+             --   readline(infile, dl);
+                read(dl, InPhase6);
+                sdatainphase6 <= to_signed(InPhase6,kDataWidth);
+                read(dl, QuadPhase6);
+                sdataquadphase6 <= to_signed(QuadPhase6,kDataWidth);
+                
+            --    readline(infile, dl);
+                read(dl, InPhase7);
+                sdatainphase7 <= to_signed(InPhase7,kDataWidth);
+                read(dl, QuadPhase7);
+                sdataquadphase7 <= to_signed(QuadPhase7,kDataWidth);
+              end if;
+            end if;
+          end process;
+          
+          RecordRecoveredData:process (aReset,clk_in)
+       --     file WriteFile : text open write_mode is "D:\result_6.txt";
+       
+            file WriteFile : text  is out  "matlab\result.txt";
+            variable DataLine : line;
+            variable WriteData_I0 : integer;
+            variable WriteData_Q0 : integer;
+            variable WriteData_I1 : integer;
+            variable WriteData_Q1 : integer;
+           
+          begin
+        --    if aReset='0' then
+            --elsif rising_edge(SamplingClk) then
+            if rising_edge(clk_in) then
+                if senableout='1' then
+    
+                   WriteData_I0 := to_integer(sInPhaseOut0);
+                   WriteData_I1 := to_integer(sInPhaseOut1);
+                   WriteData_Q0 := to_integer(sQuadPhaseOut0);
+                   WriteData_Q1 := to_integer(sQuadPhaseOut1);
+                   write(DataLine, WriteData_I0,left ,8);
+                   write(DataLine, WriteData_Q0,right,3);
+                   writeline(WriteFile, DataLine);
+                   write(DataLine, WriteData_I1,left ,8);
+                   write(DataLine, WriteData_Q1,right,3);
+                   writeline(WriteFile, DataLine);
+                end if;
+            end if;
+          end process;
+       
+END ; 
+

@@ -1,0 +1,466 @@
+
+library ieee;
+use ieee.std_logic_1164.all;
+use ieee.numeric_std.all;
+--use ieee.std_logic_unsigned.all;
+--use ieee.std_logic_arith.all;
+---------------------------------------------------
+entity DownConvert is 
+    generic (
+      kInSize      : positive := 12;
+      kOutSize     : positive := 12;
+      kNCOSize	   : positive := 16
+     );
+    port (
+		--mode : in std_logic_vector(1 downto 0);
+      aReset            : in std_logic;   
+      clk               : in std_logic; 
+      AD_sample0        : in std_logic_vector (kInsize-1 downto 0);
+	  AD_sample1        : in std_logic_vector (kInsize-1 downto 0);
+	  AD_sample2        : in std_logic_vector (kInsize-1 downto 0);
+	  AD_sample3        : in std_logic_vector (kInsize-1 downto 0);
+	  AD_sample4        : in std_logic_vector (kInsize-1 downto 0);
+	  AD_sample5        : in std_logic_vector (kInsize-1 downto 0);
+	  AD_sample6        : in std_logic_vector (kInsize-1 downto 0);
+	  AD_sample7        : in std_logic_vector (kInsize-1 downto 0);
+		
+	  InPhase0			: out std_logic_vector (kOutsize-1 downto 0);
+	  InPhase1			: out std_logic_vector (kOutsize-1 downto 0);
+	  InPhase2			: out std_logic_vector (kOutsize-1 downto 0);
+	  InPhase3			: out std_logic_vector (kOutsize-1 downto 0);
+	  InPhase4			: out std_logic_vector (kOutsize-1 downto 0);
+	  InPhase5			: out std_logic_vector (kOutsize-1 downto 0);
+	  InPhase6			: out std_logic_vector (kOutsize-1 downto 0);
+	  InPhase7			: out std_logic_vector (kOutsize-1 downto 0);
+	  
+	  QuadPhase0		: out std_logic_vector (kOutsize-1 downto 0);
+	  QuadPhase1		: out std_logic_vector (kOutsize-1 downto 0);
+	  QuadPhase2		: out std_logic_vector (kOutsize-1 downto 0);
+	  QuadPhase3		: out std_logic_vector (kOutsize-1 downto 0);
+	  QuadPhase4		: out std_logic_vector (kOutsize-1 downto 0);
+	  QuadPhase5		: out std_logic_vector (kOutsize-1 downto 0);
+	  QuadPhase6		: out std_logic_vector (kOutsize-1 downto 0);
+	  QuadPhase7		: out std_logic_vector (kOutsize-1 downto 0)
+     );
+end entity;
+
+architecture rtl of DownConvert is
+
+component	LowPassfilter_p8	is
+	 generic(
+		kInSize  : positive :=8;
+		kOutSize : positive :=8);
+port(
+		mode : in std_logic_vector(1 downto 0);
+		aReset	: in std_logic;
+		Clk		: in std_logic;
+		cDin0	: in std_logic_vector(kInSize-1 downto 0);
+		cDin1	: in std_logic_vector(kInSize-1 downto 0);
+		cDin2	: in std_logic_vector(kInSize-1 downto 0);
+		cDin3	: in std_logic_vector(kInSize-1 downto 0);
+		cDin4	: in std_logic_vector(kInSize-1 downto 0);
+		cDin5	: in std_logic_vector(kInSize-1 downto 0);
+		cDin6	: in std_logic_vector(kInSize-1 downto 0);
+		cDin7	: in std_logic_vector(kInSize-1 downto 0);
+		cDout0	: out std_logic_vector(kOutSize-1 downto 0);
+		cDout1	: out std_logic_vector(kOutSize-1 downto 0);
+		cDout2	: out std_logic_vector(kOutSize-1 downto 0);
+		cDout3	: out std_logic_vector(kOutSize-1 downto 0);
+		cDout4	: out std_logic_vector(kOutSize-1 downto 0);
+		cDout5	: out std_logic_vector(kOutSize-1 downto 0);
+		cDout6	: out std_logic_vector(kOutSize-1 downto 0);
+		cDout7	: out std_logic_vector(kOutSize-1 downto 0)
+		);
+end	component;
+
+component NCO_2 
+	generic (    
+	      kNCOSize  :  positive := 16;
+	      kFreSize  :  positive := 11
+	       );
+	port(
+	     Clk		:in std_logic;
+	     aReset		: in std_logic;
+	     DataValid		: in std_logic;
+	     InitialPhase	: in unsigned(kFreSize-1 downto 0);
+	     InPhase  		: in unsigned(kFreSize-1 downto 0);
+	     I_fac    		: out std_logic_vector(kNCOSize-1 downto 0);
+	     Q_fac    		: out std_logic_vector(kNCOSize-1 downto 0);
+	     DataRdy  		: out std_logic
+	     );
+	end component;
+
+signal  SinCurve_0, CosCurve_0,SinCurve_1, CosCurve_1  : std_logic_vector (15 downto 0);
+signal  SinCurve_2, CosCurve_2,SinCurve_3, CosCurve_3  : std_logic_vector (15 downto 0);
+signal  SinCurve_4, CosCurve_4,SinCurve_5, CosCurve_5  : std_logic_vector (15 downto 0);
+signal  SinCurve_6, CosCurve_6,SinCurve_7, CosCurve_7  : std_logic_vector (15 downto 0);
+signal  MultReg_QuadPhase0,MultReg_QuadPhase1,MultReg_QuadPhase2,MultReg_QuadPhase3 : signed(kInSize + kNCOSize - 1 downto 0);
+signal  MultReg_QuadPhase4,MultReg_QuadPhase5,MultReg_QuadPhase6,MultReg_QuadPhase7 : signed(kInSize + kNCOSize - 1 downto 0);
+signal  MultReg_InPhase0,MultReg_InPhase1,MultReg_InPhase2,MultReg_InPhase3 : signed(kInSize + kNCOSize - 1 downto 0);
+signal  MultReg_InPhase4,MultReg_InPhase5,MultReg_InPhase6,MultReg_InPhase7 : signed(kInSize + kNCOSize - 1 downto 0);
+--signal  InPhase0,InPhase1,InPhase2,InPhase3 : std_logic_vector(kOutSize - 1 downto 0);
+--signal  InPhase4,InPhase5,InPhase6,InPhase7 : std_logic_vector(kOutSize - 1 downto 0);
+--signal  QuadPhase0,QuadPhase1,QuadPhase2,QuadPhase3 : std_logic_vector(kOutSize - 1 downto 0);
+--signal  QuadPhase4,QuadPhase5,QuadPhase6,QuadPhase7 : std_logic_vector(kOutSize - 1 downto 0);
+signal  InPhase0_reg,InPhase1_reg,InPhase2_reg,InPhase3_reg : std_logic_vector(kOutSize - 1 downto 0);
+signal  InPhase4_reg,InPhase5_reg,InPhase6_reg,InPhase7_reg : std_logic_vector(kOutSize - 1 downto 0);
+
+begin
+
+SinCurve_0 <= "0000000000000000";
+SinCurve_1 <= "0100000000000000";
+SinCurve_2 <= "0000000000000000";
+SinCurve_3 <= "1100000000000000";
+SinCurve_4 <= "0000000000000000";
+SinCurve_5 <= "0100000000000000";
+SinCurve_6 <= "0000000000000000";
+SinCurve_7 <= "1100000000000000";
+CosCurve_0 <= "0100000000000000";
+CosCurve_1 <= "0000000000000000";
+CosCurve_2 <= "1100000000000000";
+CosCurve_3 <= "0000000000000000";
+CosCurve_4 <= "0100000000000000";
+CosCurve_5 <= "0000000000000000";
+CosCurve_6 <= "1100000000000000";
+CosCurve_7 <= "0000000000000000";
+
+--NCO_2_entity_0: NCO_2
+--	generic map (
+--		kNCOSize  =>  kNCOSize,
+--	    kFreSize   =>  11)
+--	port map(
+--	     Clk		=> clk,
+--	     aReset		=> aReset,
+--	     DataValid		=> '1',
+--	     InitialPhase	=> "00000000000",
+--	     InPhase  		=> "00000000000",    ---100000000
+--	     I_fac    		=> open,
+--	     Q_fac    		=> open,
+--	     DataRdy  		=> open
+--	     );
+-- 
+--    NCO_2_entity_1: NCO_2
+--	generic map (
+--		kNCOSize  =>  kNCOSize,
+--	    kFreSize   =>  11)
+--	port map(
+--	     Clk		=> clk,
+--	     aReset		=> aReset,
+--	     DataValid		=> '1',
+--	     InitialPhase	=> "01000000000",
+--	     InPhase  		=> "00000000000",    ---100000000
+--	     I_fac    		=> open,
+--	     Q_fac    		=> open,
+--	     DataRdy  		=> open
+--	     );
+--	
+--	NCO_2_entity_2: NCO_2
+--	generic map (
+--	   kNCOSize  =>  kNCOSize,
+--	   kFreSize   =>  11)
+--	port map(
+--	     Clk		=> clk,
+--	     aReset		=> aReset,
+--	     DataValid		=> '1',
+--	     InitialPhase	=> "10000000000",
+--	     InPhase  		=> "00000000000",   ---10000000000
+--	     I_fac    		=> open,
+--	     Q_fac    		=> open,
+--	     DataRdy  		=> open
+--	     );
+--		  
+--	NCO_2_entity_3: NCO_2
+--	generic map (
+--		kNCOSize  =>  kNCOSize,
+--	    kFreSize   =>  11)
+--	port map(
+--	     Clk		=> clk,
+--	     aReset		=> aReset,
+--	     DataValid		=> '1',
+--	     InitialPhase	=> "11000000000",
+--	     InPhase  		=> "00000000000",    ---100000000
+--	     I_fac    		=> open,
+--	     Q_fac    		=> open,
+--	     DataRdy  		=> open
+--	     );
+--		  
+--	NCO_2_entity_4: NCO_2
+--	generic map (
+--		kNCOSize  =>  kNCOSize,
+--	    kFreSize   =>  11)
+--	port map(
+--	     Clk		=> clk,
+--	     aReset		=> aReset,
+--	     DataValid		=> '1',
+--	     InitialPhase	=> "00000000000",
+--	     InPhase  		=> "00000000000",    ---100000000
+--	     I_fac    		=> open,
+--	     Q_fac    		=> open,
+--	     DataRdy  		=> open
+--	     );
+--		  
+--	NCO_2_entity_5: NCO_2
+--	generic map (
+--		kNCOSize  =>  kNCOSize,
+--	    kFreSize   =>  11)
+--	port map(
+--	     Clk		=> clk,
+--	     aReset		=> aReset,
+--	     DataValid		=> '1',
+--	     InitialPhase	=> "01000000000",
+--	     InPhase  		=> "00000000000",    ---100000000
+--	     I_fac    		=> open,
+--	     Q_fac    		=> open,
+--	     DataRdy  		=> open
+--	     );
+--		  
+--	NCO_2_entity_6: NCO_2
+--	generic map (
+--		kNCOSize  =>  kNCOSize,
+--	    kFreSize   =>  11)
+--	port map(
+--	     Clk		=> clk,
+--	     aReset		=> aReset,
+--	     DataValid		=> '1',
+--	     InitialPhase	=> "10000000000",
+--	     InPhase  		=> "00000000000",    ---100000000
+--	     I_fac    		=> open,
+--	     Q_fac    		=> open,
+--	     DataRdy  		=> open
+--	     );
+--		  
+--	NCO_2_entity_7: NCO_2
+--	generic map (
+--		kNCOSize  =>  kNCOSize,
+--	    kFreSize   =>  11)
+--	port map(
+--	     Clk		=> clk,
+--	     aReset		=> aReset,
+--	     DataValid		=> '1',
+--	     InitialPhase	=> "11000000000",
+--	     InPhase  		=> "00000000000",    ---100000000
+--	     I_fac    		=> open,
+--	     Q_fac    		=> open,
+--	     DataRdy  		=> open
+--	     );
+	     
+	process(clk,aReset)
+	begin
+		if aReset = '1' then
+			MultReg_QuadPhase0 <= (others => '0');
+			MultReg_QuadPhase1 <= (others => '0');
+			MultReg_QuadPhase2 <= (others => '0');
+			MultReg_QuadPhase3 <= (others => '0');
+			MultReg_QuadPhase4 <= (others => '0');
+			MultReg_QuadPhase5 <= (others => '0');
+			MultReg_QuadPhase6 <= (others => '0');
+			MultReg_QuadPhase7 <= (others => '0');
+			
+			MultReg_InPhase0 <= (others => '0');
+			MultReg_InPhase1 <= (others => '0');
+			MultReg_InPhase2 <= (others => '0');
+			MultReg_InPhase3 <= (others => '0');
+			MultReg_InPhase4 <= (others => '0');
+			MultReg_InPhase5 <= (others => '0');
+			MultReg_InPhase6 <= (others => '0');
+			MultReg_InPhase7 <= (others => '0');
+			
+			InPhase0 <= (others => '0');
+			InPhase1 <= (others => '0');
+			InPhase2 <= (others => '0');
+			InPhase3 <= (others => '0');
+			InPhase4 <= (others => '0');
+			InPhase5 <= (others => '0');
+			InPhase6 <= (others => '0');
+			InPhase7 <= (others => '0');
+			
+			QuadPhase0 <= (others => '0');
+			QuadPhase1 <= (others => '0');
+			QuadPhase2 <= (others => '0');
+			QuadPhase3 <= (others => '0');
+			QuadPhase4 <= (others => '0');
+			QuadPhase5 <= (others => '0');
+			QuadPhase6 <= (others => '0');
+			QuadPhase7 <= (others => '0');
+		elsif rising_edge(clk) then
+			MultReg_QuadPhase0 <= - signed(AD_sample0) *  signed(SinCurve_0);
+			MultReg_QuadPhase1 <= - signed(AD_sample1) *  signed(SinCurve_1);
+			MultReg_QuadPhase2 <= - signed(AD_sample2) *  signed(SinCurve_2);
+			MultReg_QuadPhase3 <= - signed(AD_sample3) *  signed(SinCurve_3);
+			MultReg_QuadPhase4 <= - signed(AD_sample4) *  signed(SinCurve_4);
+			MultReg_QuadPhase5 <= - signed(AD_sample5) *  signed(SinCurve_5);
+			MultReg_QuadPhase6 <= - signed(AD_sample6) *  signed(SinCurve_6);
+			MultReg_QuadPhase7 <= - signed(AD_sample7) *  signed(SinCurve_7);
+			
+			MultReg_InPhase0 <= signed(AD_sample0) *  signed(CosCurve_0);
+			MultReg_InPhase1 <= signed(AD_sample1) *  signed(CosCurve_1);
+			MultReg_InPhase2 <= signed(AD_sample2) *  signed(CosCurve_2);
+			MultReg_InPhase3 <= signed(AD_sample3) *  signed(CosCurve_3);
+			MultReg_InPhase4 <= signed(AD_sample4) *  signed(CosCurve_4);
+			MultReg_InPhase5 <= signed(AD_sample5) *  signed(CosCurve_5);
+			MultReg_InPhase6 <= signed(AD_sample6) *  signed(CosCurve_6);
+			MultReg_InPhase7 <= signed(AD_sample7) *  signed(CosCurve_7);
+			
+			if MultReg_InPhase0(kNCOSize+kInsize-kOutSize-3) = '0' then
+			InPhase0 <= std_logic_vector(MultReg_InPhase0(kNCOSize+kInsize-3 downto kNCOSize+kInsize-kOutSize-2));
+			else
+			InPhase0 <= std_logic_vector(MultReg_InPhase0(kNCOSize+kInsize-3 downto kNCOSize+kInsize-kOutSize-2) + 1);
+			end if;
+			if MultReg_InPhase1(kNCOSize+kInsize-kOutSize-3) = '0' then
+			InPhase1 <= std_logic_vector(MultReg_InPhase1(kNCOSize+kInsize-3 downto kNCOSize+kInsize-kOutSize-2));
+			else
+			InPhase1 <= std_logic_vector(MultReg_InPhase1(kNCOSize+kInsize-3 downto kNCOSize+kInsize-kOutSize-2) + 1);
+			end if;
+			if MultReg_InPhase2(kNCOSize+kInsize-kOutSize-3) = '0' then
+			InPhase2 <= std_logic_vector(MultReg_InPhase2(kNCOSize+kInsize-3 downto kNCOSize+kInsize-kOutSize-2));
+			else
+			InPhase2 <= std_logic_vector(MultReg_InPhase2(kNCOSize+kInsize-3 downto kNCOSize+kInsize-kOutSize-2) + 1);
+			end if;
+			if MultReg_InPhase3(kNCOSize+kInsize-kOutSize-3) = '0' then
+			InPhase3 <= std_logic_vector(MultReg_InPhase3(kNCOSize+kInsize-3 downto kNCOSize+kInsize-kOutSize-2));
+			else
+			InPhase3 <= std_logic_vector(MultReg_InPhase3(kNCOSize+kInsize-3 downto kNCOSize+kInsize-kOutSize-2) + 1);
+			end if;
+			if MultReg_InPhase4(kNCOSize+kInsize-kOutSize-3) = '0' then
+			InPhase4 <= std_logic_vector(MultReg_InPhase4(kNCOSize+kInsize-3 downto kNCOSize+kInsize-kOutSize-2));
+			else
+			InPhase4 <= std_logic_vector(MultReg_InPhase4(kNCOSize+kInsize-3 downto kNCOSize+kInsize-kOutSize-2) + 1);
+			end if;
+			if MultReg_InPhase5(kNCOSize+kInsize-kOutSize-3) = '0' then
+			InPhase5 <= std_logic_vector(MultReg_InPhase5(kNCOSize+kInsize-3 downto kNCOSize+kInsize-kOutSize-2));
+			else
+			InPhase5 <= std_logic_vector(MultReg_InPhase5(kNCOSize+kInsize-3 downto kNCOSize+kInsize-kOutSize-2) + 1);
+			end if;
+			if MultReg_InPhase6(kNCOSize+kInsize-kOutSize-3) = '0' then
+			InPhase6 <= std_logic_vector(MultReg_InPhase6(kNCOSize+kInsize-3 downto kNCOSize+kInsize-kOutSize-2));
+			else
+			InPhase6 <= std_logic_vector(MultReg_InPhase6(kNCOSize+kInsize-3 downto kNCOSize+kInsize-kOutSize-2) + 1);
+			end if;
+			if MultReg_InPhase7(kNCOSize+kInsize-kOutSize-3) = '0' then
+			InPhase7 <= std_logic_vector(MultReg_InPhase7(kNCOSize+kInsize-3 downto kNCOSize+kInsize-kOutSize-2));
+			else
+			InPhase7 <= std_logic_vector(MultReg_InPhase7(kNCOSize+kInsize-3 downto kNCOSize+kInsize-kOutSize-2) + 1);
+			end if;
+
+			if MultReg_QuadPhase0(kNCOSize+kInsize-kOutSize-3) = '0' then
+			QuadPhase0 <= std_logic_vector(MultReg_QuadPhase0(kNCOSize+kInsize-3 downto kNCOSize+kInsize-kOutSize-2));
+			else
+			QuadPhase0 <= std_logic_vector(MultReg_QuadPhase0(kNCOSize+kInsize-3 downto kNCOSize+kInsize-kOutSize-2) + 1);
+			end if;
+			if MultReg_QuadPhase1(kNCOSize+kInsize-kOutSize-3) = '0' then
+			QuadPhase1 <= std_logic_vector(MultReg_QuadPhase1(kNCOSize+kInsize-3 downto kNCOSize+kInsize-kOutSize-2));
+			else
+			QuadPhase1 <= std_logic_vector(MultReg_QuadPhase1(kNCOSize+kInsize-3 downto kNCOSize+kInsize-kOutSize-2) + 1);
+			end if;
+			
+      if MultReg_QuadPhase2(kNCOSize+kInsize-kOutSize-3) = '0' then
+			QuadPhase2 <= std_logic_vector(MultReg_QuadPhase2(kNCOSize+kInsize-3 downto kNCOSize+kInsize-kOutSize-2));
+			else
+			QuadPhase2 <= std_logic_vector(MultReg_QuadPhase2(kNCOSize+kInsize-3 downto kNCOSize+kInsize-kOutSize-2) + 1);
+			end if;
+			if MultReg_QuadPhase3(kNCOSize+kInsize-kOutSize-3) = '0' then
+			QuadPhase3 <= std_logic_vector(MultReg_QuadPhase3(kNCOSize+kInsize-3 downto kNCOSize+kInsize-kOutSize-2));
+			else
+			QuadPhase3 <= std_logic_vector(MultReg_QuadPhase3(kNCOSize+kInsize-3 downto kNCOSize+kInsize-kOutSize-2) + 1);
+			end if;
+			if MultReg_QuadPhase4(kNCOSize+kInsize-kOutSize-3) = '0' then
+			QuadPhase4 <= std_logic_vector(MultReg_QuadPhase4(kNCOSize+kInsize-3 downto kNCOSize+kInsize-kOutSize-2));
+			else
+			QuadPhase4 <= std_logic_vector(MultReg_QuadPhase4(kNCOSize+kInsize-3 downto kNCOSize+kInsize-kOutSize-2) + 1);
+			end if;
+			if MultReg_QuadPhase5(kNCOSize+kInsize-kOutSize-3) = '0' then
+			QuadPhase5 <= std_logic_vector(MultReg_QuadPhase5(kNCOSize+kInsize-3 downto kNCOSize+kInsize-kOutSize-2));
+			else
+			QuadPhase5 <= std_logic_vector(MultReg_QuadPhase5(kNCOSize+kInsize-3 downto kNCOSize+kInsize-kOutSize-2) + 1);
+			end if;
+			if MultReg_QuadPhase6(kNCOSize+kInsize-kOutSize-3) = '0' then
+			QuadPhase6 <= std_logic_vector(MultReg_QuadPhase6(kNCOSize+kInsize-3 downto kNCOSize+kInsize-kOutSize-2));
+			else
+			QuadPhase6 <= std_logic_vector(MultReg_QuadPhase6(kNCOSize+kInsize-3 downto kNCOSize+kInsize-kOutSize-2) + 1);
+			end if;
+			if MultReg_QuadPhase7(kNCOSize+kInsize-kOutSize-3) = '0' then
+			QuadPhase7 <= std_logic_vector(MultReg_QuadPhase7(kNCOSize+kInsize-3 downto kNCOSize+kInsize-kOutSize-2));
+			else
+			QuadPhase7 <= std_logic_vector(MultReg_QuadPhase7(kNCOSize+kInsize-3 downto kNCOSize+kInsize-kOutSize-2) + 1);
+			end if;
+		end if;
+	end process;
+	
+--process(aReset,clk)
+--  begin
+--    if aReset = '1' then
+--      InPhase0_reg <= (others => '0');
+--      InPhase1_reg <= (others => '0');
+--      InPhase2_reg <= (others => '0');
+--      InPhase3_reg <= (others => '0');
+--      InPhase4_reg <= (others => '0');
+--      InPhase5_reg <= (others => '0');
+--      InPhase6_reg <= (others => '0');
+--      InPhase7_reg <= (others => '0');    
+--    elsif rising_edge(clk) then
+--      InPhase0_reg <= InPhase0;
+--      InPhase1_reg <= InPhase1;
+--      InPhase2_reg <= InPhase2;
+--      InPhase3_reg <= InPhase3;
+--      InPhase4_reg <= InPhase4;
+--      InPhase5_reg <= InPhase5;
+--      InPhase6_reg <= InPhase6;
+--      InPhase7_reg <= InPhase7;
+--  end if;
+--end process;
+--      
+--	
+--	
+--LowPassfilter_I:	LowPassfilter_p8
+--generic map(
+--		8,
+--		8)
+--port map(
+--		mode 		=> mode,
+--		aReset	=> aReset,
+--		Clk		=> clk,
+--		cDin0	=> InPhase0,
+--		cDin1	=> InPhase1,
+--		cDin2	=> InPhase2,
+--		cDin3	=> InPhase3,
+--		cDin4	=> InPhase4,
+--		cDin5	=> InPhase5,
+--		cDin6	=> InPhase6,
+--		cDin7	=> InPhase7,
+--		cDout0	=> pInPhase0,
+--		cDout1	=> pInPhase1,
+--		cDout2	=> pInPhase2,
+--		cDout3	=> pInPhase3,
+--		cDout4	=> pInPhase4,
+--		cDout5	=> pInPhase5,
+--		cDout6	=> pInPhase6,
+--		cDout7	=> pInPhase7
+--		);
+--		
+--LowPassfilter_Q:	LowPassfilter_p8
+--generic map(
+--		8,
+--		8)
+--port map(
+--		mode		=> mode,
+--		aReset	=> aReset,
+--		Clk		=> clk,
+--		cDin0	=> QuadPhase0,
+--		cDin1	=> QuadPhase1,
+--		cDin2	=> QuadPhase2,
+--		cDin3	=> QuadPhase3,
+--		cDin4	=> QuadPhase4,
+--		cDin5	=> QuadPhase5,
+--		cDin6	=> QuadPhase6,
+--		cDin7	=> QuadPhase7,
+--		cDout0	=> pQuadPhase0,
+--		cDout1	=> pQuadPhase1,
+--		cDout2	=> pQuadPhase2,
+--		cDout3	=> pQuadPhase3,
+--		cDout4	=> pQuadPhase4,
+--		cDout5	=> pQuadPhase5,
+--		cDout6	=> pQuadPhase6,
+--		cDout7	=> pQuadPhase7
+--		);
+--		
+end rtl;

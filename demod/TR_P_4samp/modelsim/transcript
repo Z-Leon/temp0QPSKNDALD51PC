@@ -1,0 +1,53 @@
+# Reading C:/altera/11.0/modelsim_ae/tcl/vsim/pref.tcl 
+# OpenFile E:/work/2011/10/Demod_Para_v0.1/source/TR_P_4samp/modelsim/sim_TR_P_4samp.mpf 
+# Loading project sim_TR_P_4samp
+# Compile of TimerecoveryP8_v2.vhd was successful.
+# Compile of GardnerTED_P8_v2.vhd was successful.
+# Compile of InterpType_delay.vhd was successful.
+# Compile of LoopFilterP8.vhd was successful.
+# Compile of Parallel8TapFifo_v2.vhd was successful.
+# Compile of Parallelfractiondecimate_branch_v2.vhd was successful.
+# Compile of PolyInterpP8_v2.vhd was successful.
+# Compile of Rom_one_v3.vhd was successful.
+# Compile of Rom_three_v3.vhd was successful.
+# Compile of Rom_two_v3.vhd was successful.
+# Compile of TED_ControlP8_v2.vhd was successful.
+# Compile of timerecoveryp8_tb.vhd was successful with warnings.
+# 12 compiles, 0 failed with no errors. 
+vsim work.timerecoveryp8_tb
+# vsim work.timerecoveryp8_tb 
+# //  ModelSim ALTERA 6.6d Nov  2 2010 
+# //
+# //  Copyright 1991-2010 Mentor Graphics Corporation
+# //              All Rights Reserved.
+# //
+# //  THIS WORK CONTAINS TRADE SECRET AND 
+# //  PROPRIETARY INFORMATION WHICH IS THE PROPERTY
+# //  OF MENTOR GRAPHICS CORPORATION OR ITS LICENSORS
+# //  AND IS SUBJECT TO LICENSE TERMS.
+# //
+# Loading std.standard
+# Loading ieee.std_logic_1164(body)
+# Loading ieee.numeric_std(body)
+# Loading std.textio(body)
+# Loading work.timerecoveryp8_tb(timerecoveryp8_tb_arch)
+# Loading work.timerecoveryp8_v2(rtl)
+# Loading ieee.std_logic_arith(body)
+# Loading ieee.std_logic_signed(body)
+# Loading work.polyinterpp8_v2(rtl)
+# Loading work.parallelfractiondecimate_branch_v2(rtl)
+# Loading work.rom_one_v3(syn)
+# Loading ieee.std_logic_unsigned(body)
+# Loading altera_mf.altera_common_conversion(body)
+# Loading altera_mf.altera_device_families(body)
+# Loading altera_mf.altsyncram(translated)
+# Loading work.rom_two_v3(syn)
+# Loading work.rom_three_v3(syn)
+# Loading work.interptype_delay(rt1)
+# Loading work.parallel8tapfifo_v2(rtl)
+# Loading work.gardnerted_p8_v2(rtl)
+# Loading work.loopfilterp8(rtl)
+# Loading work.ted_controlp8_v2(rtl)
+do wave.do
+run -all
+quit -sim

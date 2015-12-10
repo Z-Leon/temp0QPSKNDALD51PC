@@ -1,0 +1,522 @@
+---------------------------------
+-- Author	: JiangLong
+-- Date   	: 2015-11-17
+-- Project	: Pj051
+-- Function	: seek LDPC packet head
+-- Description	: Packet length should be constant. Each packet head has 32 bits constant content.
+--				  8 parellel branches version 
+-- Ports	: d_in : 8 data, big endian.  d_in(31 : 28) is d0, d_in(27 : 24) is d1, ..., d_in(3:0) is d7.  
+--					 Btw, d_in(31:28) is 4bit signed LDPC soft information.   0 is 1000 (-8), 1 is 0111 (7).
+--			  d_out : Big endian, same to d_in.
+-- Problems	: 
+-- History	: 
+----------------------------------
+library ieee ;
+use ieee.std_logic_1164.all ;
+use ieee.numeric_std.all ;
+
+entity Packet_head_seeker is
+generic (n_parellel : positive := 8;  -- num of parellel branches
+		 n_bit : positive := 4   -- num of bits of every data
+	);
+  port (
+  	aReset	: in std_logic;
+  	clk		: in std_logic;
+  	d_in	: in std_logic_vector(31 downto 0) ;
+  	val_in	: in std_logic;
+
+  	d_out	: out std_logic_vector(31 downto 0) ;
+  	val_out		: out std_logic;
+  	sop_out		: out std_logic;
+  	eop_out		: out std_logic
+  ) ;
+end entity ; 
+
+architecture arch of Packet_head_seeker is
+
+	constant len_pkt_head : integer := 32 ; -- Length of packet head
+	constant pkt_head : std_logic_vector := x"352ef853";  -- Big endian by byte 
+	constant pkt_len : integer := 8192;  --length of one packet
+
+  constant thd_acq : unsigned(5 downto 0) := "000010";
+  constant thd_syn : unsigned(5 downto 0) := "000100";
+  signal thd : unsigned(5 downto 0);
+
+	type d_array is array (natural range <>) of std_logic_vector(n_bit*n_parellel-1 downto 0) ;
+	constant kArySize : integer :=9;
+	signal   d_reg : d_array(kArySize-1 downto 0);
+
+	signal d_array_wire_total : std_logic_vector(len_pkt_head+n_parellel-1 downto 0) ;
+	type d_array_wire is array (natural range <>) of std_logic_vector(len_pkt_head-1 downto 0) ;
+	signal 	 d_reg_wire, nxor_d_reg : d_array_wire(n_parellel-1 downto 0);
+
+  type unsigned_6b is array (natural range <>) of unsigned(5 downto 0) ;
+  signal sum8_nxor_d_reg_3, sum8_nxor_d_reg_2, sum8_nxor_d_reg_1, sum8_nxor_d_reg_0, sum32_nxor_d_reg : unsigned_6b(n_parellel-1 downto 0);
+
+  constant kHitSize : integer := 1;
+  type hit_array is array (natural range <>) of std_logic_vector(7 downto 0) ;
+  signal hit : hit_array(kHitSize-1 downto 0);
+  -- Build an enumerated type for the state machine
+  type state_type is (s0, s1, s2, s3);
+  -- s0 : wait       s1 : acquire     
+  -- s2 : sync   
+  -- s2->s3 : head error > threshold
+  -- s3->s2 : head error < threshold
+  -- s3->s0 : many "head error > threshold"
+  -- Register to hold the current state
+  signal state : state_type;
+
+  signal hit_pos : std_logic_vector(3 downto 0) ;
+  signal cnt_hit_s1, cnt_hit_lost_s3 : integer range 0 to 15;
+  signal hit_lost_s1, hit_lost_s2, hit_s3 : std_logic;
+  signal cnt_glb : integer range 0 to 1023 ; 
+  signal hit_pos_last, hit_pos_last_reg : std_logic_vector(2 downto 0) ;
+  signal sop_out_cnt : integer range 0 to 1023;
+  signal tmp_sop_out : std_logic;
+
+begin
+
+------------------------------------------------------------------------------------
+--                      PART 1   :  seek the frame head to get "hit" signal  
+-----------------------------------------------------------------------------------
+-- Input data buffer
+process( clk, aReset )
+begin
+  if( aReset = '1' ) then
+    for i in 0 to kArySize-1 loop
+    	d_reg(i) <= (others => '0');
+    end loop;
+  elsif( rising_edge(clk) ) then
+  	if val_in = '1' then
+  		d_reg(0) <= d_in;
+  		d_reg(kArySize-1 downto 1) <= d_reg(kArySize-2 downto 0);
+  	end if;
+  end if ;
+end process ; 
+
+------------  Begin  Only for parallel 8  -----------------------------
+bank: for i in 0 to 4 generate
+d_array_wire_total(i*8+7 downto i*8) <= d_reg(i)(31) & d_reg(i)(27) & d_reg(i)(23) & d_reg(i)(19) & d_reg(i)(15) & d_reg(i)(11) & d_reg(i)(7) & d_reg(i)(3);
+end generate;
+
+-- Only for parallel 8
+-- Now get 8 parellel 32 bits one time
+bank2: for i in 0 to n_parellel-1 generate
+  d_reg_wire(i) <= d_array_wire_total(d_array_wire_total'high+i-n_parellel+1 downto d_array_wire_total'high+i-n_parellel+1-len_pkt_head+1);
+end generate;
+
+-----------------------------------
+-- NXOR    or say correlaiton
+-----------------------------------
+bank3: for i in 0 to n_parellel-1 generate
+process(clk)
+begin
+  if rising_edge(clk) then
+  if val_in = '1' then
+    nxor_d_reg(i) <= d_reg_wire(i) xnor pkt_head;
+  end if;
+  end if;
+end process;
+end generate;
+
+
+-- Calc the sum 32 of each nxor_d_reg(i), includes 2 steps
+-- step 1: clac sum 8        step 2 : calc sum 32
+bank4: for i in 0 to n_parellel-1 generate
+process(clk, aReset)
+begin
+if aReset = '1' then
+  sum8_nxor_d_reg_3(i) <= (others => '0');
+  sum8_nxor_d_reg_2(i) <= (others => '0');
+  sum8_nxor_d_reg_1(i) <= (others => '0');
+  sum8_nxor_d_reg_0(i) <= (others => '0');
+elsif rising_edge(clk) then
+  if val_in = '1' then
+    sum8_nxor_d_reg_3(i) <= ("00000" & nxor_d_reg(i)(31)) + ("00000" & nxor_d_reg(i)(30)) + ("00000" & nxor_d_reg(i)(29)) + ("00000" & nxor_d_reg(i)(28)) 
+                          + ("00000"&nxor_d_reg(i)(27)) + ("00000"&nxor_d_reg(i)(26)) + ("00000"&nxor_d_reg(i)(25)) + ("00000"&nxor_d_reg(i)(24));
+    sum8_nxor_d_reg_2(i) <= ("00000"&nxor_d_reg(i)(23)) + ("00000"&nxor_d_reg(i)(22)) + ("00000"&nxor_d_reg(i)(21)) + ("00000"&nxor_d_reg(i)(20)) 
+                          + ("00000"&nxor_d_reg(i)(19)) + ("00000"&nxor_d_reg(i)(18)) + ("00000"&nxor_d_reg(i)(17)) + ("00000"&nxor_d_reg(i)(16));
+    sum8_nxor_d_reg_1(i) <= ("00000"&nxor_d_reg(i)(15)) + ("00000"&nxor_d_reg(i)(14)) + ("00000"&nxor_d_reg(i)(13)) + ("00000"&nxor_d_reg(i)(12)) 
+                          + ("00000"&nxor_d_reg(i)(11)) + ("00000"&nxor_d_reg(i)(10)) + ("00000"&nxor_d_reg(i)(9)) + ("00000"&nxor_d_reg(i)(8));
+    sum8_nxor_d_reg_0(i) <= ("00000"&nxor_d_reg(i)(7)) + ("00000"&nxor_d_reg(i)(6)) + ("00000"&nxor_d_reg(i)(5)) + ("00000"&nxor_d_reg(i)(4)) 
+                          + ("00000"&nxor_d_reg(i)(3)) + ("00000"&nxor_d_reg(i)(2)) + ("00000"&nxor_d_reg(i)(1)) + ("00000"&nxor_d_reg(i)(0));
+end if;
+end if;
+end process;
+end generate;
+
+-- step 2   
+------------------------------------------------------------   
+-- If match the head, sum32_nxor_d_reg(k) = "000000";
+------------------------------------------------------------
+bank5: for i in 0 to n_parellel-1 generate
+process(clk, aReset)
+begin
+if aReset = '1' then
+  sum32_nxor_d_reg(i) <= (others => '0');
+elsif rising_edge(clk) then
+  if val_in = '1' then
+    sum32_nxor_d_reg(i) <= sum8_nxor_d_reg_3(i) + sum8_nxor_d_reg_2(i) + sum8_nxor_d_reg_1(i) + sum8_nxor_d_reg_0(i);
+  end if;
+end if;
+end process;
+end generate;
+
+bank6: for i in 0 to n_parellel-1 generate
+  process(sum32_nxor_d_reg(i))
+  begin
+    if sum32_nxor_d_reg(i) <= thd then
+      hit(0)(i) <= '1' ; 
+    else
+      hit(0)(i) <= '0' ;
+    end if;
+  end process;
+end generate;
+
+-- hit position
+-------------------------------------------------
+-- hit_pos(3) :  '1'  hit    '0' not hit
+-- hit_pos(2:0):  hit position
+-------------------------------------------------
+process( clk, aReset )
+begin
+  if( aReset = '1' ) then
+    hit_pos <= (others => '0');
+  elsif( rising_edge(clk) ) then
+  if val_in = '1' then
+    if hit(0)(7) = '1' then
+      hit_pos <= "1111";
+    elsif hit(0)(6) = '1'  then
+      hit_pos <= "1110";
+    elsif hit(0)(5) = '1'  then
+      hit_pos <= "1101";
+    elsif hit(0)(4) = '1'  then
+      hit_pos <= "1100";
+    elsif hit(0)(3) = '1'  then
+      hit_pos <= "1011";
+    elsif hit(0)(2) = '1'  then
+      hit_pos <= "1010";
+    elsif hit(0)(1) = '1'  then
+      hit_pos <= "1001";
+    elsif hit(0)(0) = '1'  then
+      hit_pos <= "1000";
+    else
+      hit_pos <= "0000";
+    end if;
+
+  end if ;
+  end if;
+end process ; 
+
+--------------------- End   -- If match the head, sum32_nxor_d_Reg(k) = x"00000000";  ----------------------------------------------------
+
+-----------------------------------------------------------------------------
+--                         PART  2   :  state machine 
+-----------------------------------------------------------------------------
+--------------- Begin   State machine  --------------------------------
+
+process (clk, aReset)
+  begin
+
+    if aReset = '1' then
+      state <= s0;
+    elsif (rising_edge(clk)) then
+    if val_in = '1' then
+      -- Determine the next state synchronously, based on
+      -- the current state and the input
+      case state is
+        when s0=>
+          if hit_pos(3) = '1'  then
+            state <= s1;
+          else
+            state <= s0;
+          end if;
+        when s1=>
+          if cnt_hit_s1 = 8 then
+            state <= s2;
+          elsif hit_lost_s1 = '1' then
+            state <= s0;
+          else
+            state <= s1;
+          end if;
+        when s2=>
+          if hit_lost_s2 = '1' then
+            state <= s3;
+          else
+            state <= s2;
+          end if;
+        when s3=>
+          if hit_s3 = '1' then
+            state <= s2;
+          elsif cnt_hit_lost_s3 = 8 then
+            state <= s0;
+          else
+            state <= s3;
+          end if;
+      end case;
+    end if;
+    end if;
+  end process;
+-----------------------------------------------------------------------------------------------
+
+  -- thd
+  process( clk, aReset )
+  begin
+    if( aReset = '1' ) then
+      thd <= (others => '0');
+    elsif( rising_edge(clk) ) then
+      if val_in = '1'  then
+        if state = s0  or state = s1 then
+          thd <= thd_acq;
+        else
+          thd <= thd_syn;
+        end if;
+      end if;
+    end if ;
+  end process ;
+
+  ----------------------------------------------------------------------------------------------
+  -- cnt_glb    gload counter 0 to 1023 repeat, 1024 is frame length(8192/n_parellel=1024)
+  ----------------------------------------------------------------------------------------------
+   process( clk, aReset )
+   begin
+     if( aReset = '1' ) then
+       cnt_glb <= 0; 
+     elsif( rising_edge(clk) ) then
+     if val_in = '1' then
+       if state = s0 then
+        if hit_pos(3) = '1' then
+          cnt_glb <= 0;
+        else
+          cnt_glb <= cnt_glb + 1;
+        end if;
+       else
+          cnt_glb <= cnt_glb + 1;
+       end if;
+     end if;
+     end if;
+   end process ;  
+
+   -----------------------------------------------------------
+   -- hit_position_last  : the last frame hit position
+   -- hit_pos_last_reg  can only change in s1 state !!!
+   -----------------------------------------------------------
+   process( clk, aReset )
+   begin
+     if( aReset = '1' ) then
+       hit_pos_last <= (others => '0');
+       hit_pos_last_reg <= (others => '0');
+     elsif( rising_edge(clk) ) then
+       if val_in = '1' then
+       if state = s1 then            ----  hit_pos_last_reg  can only change in s1 state !!!
+        if hit_pos(3) = '1'  then
+          hit_pos_last <= hit_pos(2 downto 0);
+        end if;
+        if cnt_glb = 0 then
+          hit_pos_last_reg <= hit_pos_last;
+        end if;
+       end if;
+      end if;
+     end if ;
+   end process ; 
+
+   -- cnt_hit_s1
+   process( clk, aReset )
+   begin
+     if( aReset = '1' ) then
+       cnt_hit_s1 <= 0; 
+       hit_lost_s1 <= '0';
+     elsif( rising_edge(clk) ) then
+      if val_in = '1' then
+        
+        if state = s1 then
+          if cnt_glb = 1023 then
+            if hit_pos(3) = '1'  and hit_pos(2 downto 0) = hit_pos_last_reg then
+              cnt_hit_s1 <= cnt_hit_s1 + 1;
+              hit_lost_s1 <= '0';
+            else
+              cnt_hit_s1 <= 0;
+              hit_lost_s1 <= '1';
+            end if;
+          else
+            cnt_hit_s1 <= cnt_hit_s1;
+            hit_lost_s1 <= hit_lost_s1;
+          end if;
+        else
+            hit_lost_s1 <= '0';
+            cnt_hit_s1 <= 0;
+        end if;
+      
+      end if;  
+     end if ;
+   end process ; 
+
+   -- hit_lost_s2
+   process( clk, aReset )
+   begin
+     if( aReset = '1' ) then
+       hit_lost_s2 <= '0';
+     elsif( rising_edge(clk) ) then
+      if val_in = '1' then
+        
+        if state = s2 then
+          if cnt_glb = 1023 then
+            if hit_pos(3) = '1'  and hit_pos(2 downto 0) = hit_pos_last_reg then
+              hit_lost_s2 <= '0';
+            else
+              hit_lost_s2 <= '1';
+            end if;
+          else
+            hit_lost_s2 <= hit_lost_s2;
+          end if;
+        else
+            hit_lost_s2 <= '0';
+        end if;
+      
+      end if;  
+     end if ;
+   end process ; 
+
+
+  -- cnt_hit_lost_s3
+   process( clk, aReset )
+   begin
+     if( aReset = '1' ) then
+       cnt_hit_lost_s3 <= 0; 
+       hit_s3 <= '0';
+     elsif( rising_edge(clk) ) then
+      if val_in = '1' then
+        
+        if state = s3 then
+          if cnt_glb = 1023 then
+            if hit_pos(3) = '1'  and hit_pos(2 downto 0) = hit_pos_last_reg then
+              cnt_hit_lost_s3 <= 0;
+              hit_s3 <= '1';
+            else
+              cnt_hit_lost_s3 <= cnt_hit_lost_s3 + 1;
+              hit_s3 <= '0';
+            end if;
+          else
+            cnt_hit_lost_s3 <= cnt_hit_lost_s3;
+            hit_s3 <= '0' ;
+          end if;
+        else
+            hit_s3 <= '0' ;
+            cnt_hit_lost_s3 <= 0;
+        end if;
+      
+      end if;  
+     end if ;
+   end process ; 
+
+-----------------------------------------------------------------------------
+--                      PART  3    : output 
+-----------------------------------------------------------------------------
+
+-- data out , selected from 8 parellel branches
+process( clk, aReset )
+begin
+  if( aReset = '1' ) then
+    d_out <= (others => '0');
+  elsif( rising_edge(clk) ) then
+  if val_in = '1' then
+    case hit_pos_last_reg is 
+      when "111" =>
+        d_out <= d_reg(8);
+      when "110" =>
+        d_out <= d_reg(8)(27 downto 0) & d_reg(7)(31 downto 28);
+      when "101" =>
+        d_out <= d_reg(8)(23 downto 0) & d_reg(7)(31 downto 24);
+      when "100" =>
+        d_out <= d_reg(8)(19 downto 0) & d_reg(7)(31 downto 20);
+      when "011" =>
+        d_out <= d_reg(8)(15 downto 0) & d_reg(7)(31 downto 16);
+      when "010" =>
+        d_out <= d_reg(8)(11 downto 0) & d_reg(7)(31 downto 12);
+      when "001" =>
+        d_out <= d_reg(8)(7 downto 0) & d_reg(7)(31 downto 8);
+      when "000" =>
+        d_out <= d_reg(8)(3 downto 0) & d_reg(7)(31 downto 4);
+      when others =>
+        d_out <= d_reg(8);
+    end case;
+  end if ;
+end if;
+end process ;
+
+-- sop_out
+ process( clk, aReset )
+ begin
+   if( aReset = '1' ) then
+     tmp_sop_out <= '0' ;
+     sop_out <= '0' ;
+   elsif( rising_edge(clk) ) then
+     if val_in = '1' then
+      if state = s2 or state = s3 then
+        if cnt_glb = 3 then
+          tmp_sop_out <= '1' ;
+          sop_out <= '1' ;
+        else
+          tmp_sop_out <= '0' ;
+          sop_out <= '0' ;
+        end if;
+      else
+          tmp_sop_out <= '0' ;
+          sop_out <= '0' ;
+      end if;
+     else
+          tmp_sop_out <= tmp_sop_out ;
+          sop_out <= '0' ;
+     end if;
+   end if ;
+ end process ;  
+
+ -----------------------------------------
+ -- eop_out :  1019 clks after sop_out 
+ -----------------------------------------
+ process( clk, aReset )
+ begin
+   if( aReset = '1' ) then
+     eop_out <= '0' ;
+     sop_out_cnt <= 0;
+   elsif( rising_edge(clk) ) then
+    if val_in = '1' then
+        if tmp_sop_out = '1'  then
+          sop_out_cnt <= 1;
+        elsif sop_out_cnt /= 0 then
+          sop_out_cnt <= sop_out_cnt + 1;
+        else
+          sop_out_cnt <= 0;
+        end if;
+
+        if sop_out_cnt = 1018 then
+          eop_out <= '1' ;
+        else
+          eop_out <= '0' ;
+        end if;
+    else 
+      eop_out <= '0' ;
+      sop_out_cnt <= sop_out_cnt;
+    end if; 
+   end if ;
+ end process ; 
+
+  -- val_out  :  make sure val_out='0' between eop and sop 
+  process( clk, aReset )
+  begin
+    if( aReset = '1' ) then
+      val_out <= '0' ;
+    elsif( rising_edge(clk) ) then
+      if  tmp_sop_out = '1' or (sop_out_cnt >= 1 and sop_out_cnt <= 1018) then
+        val_out <= val_in;
+      elsif state = s2 and cnt_glb = 3 then
+        val_out <= val_in;
+      elsif (sop_out_cnt = 1023) and (state /= s0 and state /= s1) then
+        val_out <= val_in;
+      else
+        val_out <= '0' ;
+      end if;
+    end if ;
+  end process ; 
+
+end architecture ;   

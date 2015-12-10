@@ -1,0 +1,9 @@
+set_global_assignment -name IP_TOOL_NAME "ALTLVDS_RX"
+set_global_assignment -name IP_TOOL_VERSION "13.0"
+set_global_assignment -name VERILOG_FILE [file join $::quartus(qip_path) "adc_interface.v"]
+set_global_assignment -name MISC_FILE [file join $::quartus(qip_path) "adc_interface.bsf"]
+set_global_assignment -name MISC_FILE [file join $::quartus(qip_path) "adc_interface_inst.v"]
+set_global_assignment -name MISC_FILE [file join $::quartus(qip_path) "adc_interface_bb.v"]
+set_global_assignment -name MISC_FILE [file join $::quartus(qip_path) "adc_interface.inc"]
+set_global_assignment -name MISC_FILE [file join $::quartus(qip_path) "adc_interface.cmp"]
+set_global_assignment -name MISC_FILE [file join $::quartus(qip_path) "adc_interface.ppf"]

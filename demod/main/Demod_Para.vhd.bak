@@ -1,0 +1,1147 @@
+--*********************************************************************************
+
+--author	: JL
+--date		: 2011.10.28
+--purpose	:
+--            the top-level file of Demodulator with parellel algorithm.
+--*********************************************************************************
+--version	: V1.0
+--���ţ�DEM1G2_V1_201102 �����ٽ����壬2��AD��
+--*********************************************************************************
+
+
+library ieee;
+use ieee.std_logic_1164.all;
+use ieee.numeric_std.all;
+
+entity	Demod_Para	is
+generic	(
+			kInSize  : positive :=8
+		);
+port	(
+		aReset          : in  std_logic; 
+		clk_100         : in  std_logic;
+		pclk_I			: in  std_logic;  -- 50MHz
+		
+		AD_d0			: in std_logic_vector(kInSize-1 downto 0);
+		AD_d1			: in std_logic_vector(kInSize-1 downto 0);
+		AD_d2			: in std_logic_vector(kInSize-1 downto 0);
+		AD_d3           : in std_logic_vector(kInSize-1 downto 0);
+		AD_d4			: in std_logic_vector(kInSize-1 downto 0);
+		AD_d5           : in std_logic_vector(kInSize-1 downto 0);
+		AD_d6           : in std_logic_vector(kInSize-1 downto 0);
+		AD_d7           : in std_logic_vector(kInSize-1 downto 0);
+		
+		err_test 	: out std_logic
+		
+		);
+end	Demod_Para;
+-- AD����ADC083000������Ҫ1.2G�����ʣ���AD������ʱ��Ϊ600M
+-- AD������FPGA���źŰ����1��150Mʱ�ӣ�4·300M�������ݣ�DDR��ʽ��
+-- Dclk_rst_IΪAD�ĸ�λ�źţ���֤���AD��λһ��
+
+
+
+architecture rtl of	Demod_Para	is 
+
+	--------------------------component declare(start)------------------------
+
+	component Input_stage is
+	generic(
+		kInSize : positive := 8;
+		kOutSize : positive := 8 );
+	port (
+		aReset          : in  std_logic; 
+		clk             : in  std_logic;
+		clk_Q				 : in  std_logic;
+		
+		cDin0_I		: in std_logic_vector(kInSize-1 downto 0);
+		cDin1_I		: in std_logic_vector(kInSize-1 downto 0);
+		cDin2_I		: in std_logic_vector(kInSize-1 downto 0);
+		cDin3_I		: in std_logic_vector(kInSize-1 downto 0);
+		cDin4_I		: in std_logic_vector(kInSize-1 downto 0);
+		cDin5_I		: in std_logic_vector(kInSize-1 downto 0);
+		cDin6_I		: in std_logic_vector(kInSize-1 downto 0);
+		cDin7_I		: in std_logic_vector(kInSize-1 downto 0);
+		
+		cDin0_Q		: in std_logic_vector(kInSize-1 downto 0);
+		cDin1_Q		: in std_logic_vector(kInSize-1 downto 0);
+		cDin2_Q		: in std_logic_vector(kInSize-1 downto 0);
+		cDin3_Q		: in std_logic_vector(kInSize-1 downto 0);
+		cDin4_Q		: in std_logic_vector(kInSize-1 downto 0);
+		cDin5_Q		: in std_logic_vector(kInSize-1 downto 0);
+		cDin6_Q		: in std_logic_vector(kInSize-1 downto 0);
+		cDin7_Q		: in std_logic_vector(kInSize-1 downto 0);
+		
+		cDout0_I	: out std_logic_vector(kOutSize-1 downto 0);
+		cDout1_I	: out std_logic_vector(kOutSize-1 downto 0);
+		cDout2_I	: out std_logic_vector(kOutSize-1 downto 0);
+		cDout3_I	: out std_logic_vector(kOutSize-1 downto 0);
+		cDout4_I	: out std_logic_vector(kOutSize-1 downto 0);
+		cDout5_I	: out std_logic_vector(kOutSize-1 downto 0);
+		cDout6_I	: out std_logic_vector(kOutSize-1 downto 0);
+		cDout7_I	: out std_logic_vector(kOutSize-1 downto 0);
+			
+		cDout0_Q	: out std_logic_vector(kOutSize-1 downto 0);
+		cDout1_Q	: out std_logic_vector(kOutSize-1 downto 0);
+		cDout2_Q	: out std_logic_vector(kOutSize-1 downto 0);
+		cDout3_Q	: out std_logic_vector(kOutSize-1 downto 0);
+		cDout4_Q	: out std_logic_vector(kOutSize-1 downto 0);
+		cDout5_Q	: out std_logic_vector(kOutSize-1 downto 0);
+		cDout6_Q	: out std_logic_vector(kOutSize-1 downto 0);
+		cDout7_Q	: out std_logic_vector(kOutSize-1 downto 0)
+      
+     );
+	end component;          
+
+	--Decimate Module
+	component ParallelDecimate_Int is
+        generic(
+                kDataWidth          : positive := 8;     -- ��������������λ��
+                kInterWidth         : positive := 42;    -- �м�����λ��
+                kCountWidth         : positive := 4;     -- �������Ŀ��ȣ���������ȡ��--8·���У�4
+                kDecimateRateWidthC : positive := 8;     -- CIC��ȡ��λ��(kSampleRateWidth_I - 4)
+                kDecimateRateWidthF : positive := 13;    -- ��������ȡ��λ����������λ��λkDecimateRateWidthF-kCountWidth��
+                kSampleRateWidth_I  : positive := 12;    -- ��������������λ��
+                kSampleRateWidth_F  : positive := 8      -- ������С������λ��
+                ); 
+        port   (
+                aReset          : in  std_logic;
+                Clk_in          : in  std_logic;
+                SampleRate      : in  unsigned (kSampleRateWidth_I+kSampleRateWidth_F-1 downto 0);
+                DecRateFraction : in  unsigned (kDecimateRateWidthF-1 downto 0);    --����������ȡ��
+                ReDecRateFraction: in  unsigned (kDecimateRateWidthF-1 downto 0); --����������ȡ�ʵĵ���
+                                
+                sDataIn0        : in  signed (kDataWidth-1 downto 0);
+                sDataIn1        : in  signed (kDataWidth-1 downto 0);
+                sDataIn2        : in  signed (kDataWidth-1 downto 0);
+                sDataIn3        : in  signed (kDataWidth-1 downto 0);
+                sDataIn4        : in  signed (kDataWidth-1 downto 0);
+                sDataIn5        : in  signed (kDataWidth-1 downto 0);
+                sDataIn6        : in  signed (kDataWidth-1 downto 0);
+                sDataIn7        : in  signed (kDataWidth-1 downto 0);
+                sDataOut0       : out signed (kDataWidth-1 downto 0);
+                sDataOut1       : out signed (kDataWidth-1 downto 0);
+                sDataOut2       : out signed (kDataWidth-1 downto 0);
+                sDataOut3       : out signed (kDataWidth-1 downto 0);
+                sDataOut4       : out signed (kDataWidth-1 downto 0);
+                sDataOut5       : out signed (kDataWidth-1 downto 0);
+                sDataOut6       : out signed (kDataWidth-1 downto 0);
+                sDataOut7       : out signed (kDataWidth-1 downto 0);
+                sEnableOut      : out std_logic);
+	end component;
+
+	component ParallelFractionDecimate is
+        generic(
+                kDecimateRate   : positive := 16; -- ��ȡ��λ��
+                kCountWidth     : positive := 4;  -- �������Ŀ���
+                kDelay			: positive :=2;	  -- ��������ʱ
+                kDataWidth      : positive :=8);  -- �������ݿ���
+        port   (
+                aReset          : in  std_logic;
+                Clk_in          : in  std_logic;
+                DecRateFraction : in  unsigned (kDecimateRate-1 downto 0);
+                ReDecRateFraction : in  unsigned (kDecimateRate-1 downto 0);
+                sEnable_I		: in  std_logic; --������ʹ���źţ���ʾ��ʱ�������Ƿ���Ч
+                sEnable_Q		: in  std_logic; --������ʹ���źţ���ʾ��ʱ�������Ƿ���Ч
+                
+                sDataIn_I0        : in  signed (kDataWidth-1 downto 0);
+                sDataIn_I1        : in  signed (kDataWidth-1 downto 0);
+                sDataIn_I2        : in  signed (kDataWidth-1 downto 0);
+                sDataIn_I3        : in  signed (kDataWidth-1 downto 0);
+                sDataIn_I4        : in  signed (kDataWidth-1 downto 0);
+                sDataIn_I5        : in  signed (kDataWidth-1 downto 0);
+                sDataIn_I6        : in  signed (kDataWidth-1 downto 0);
+                sDataIn_I7        : in  signed (kDataWidth-1 downto 0);
+
+                sDataIn_Q0        : in  signed (kDataWidth-1 downto 0);
+                sDataIn_Q1        : in  signed (kDataWidth-1 downto 0);
+                sDataIn_Q2        : in  signed (kDataWidth-1 downto 0);
+                sDataIn_Q3        : in  signed (kDataWidth-1 downto 0);
+                sDataIn_Q4        : in  signed (kDataWidth-1 downto 0);
+                sDataIn_Q5        : in  signed (kDataWidth-1 downto 0);
+                sDataIn_Q6        : in  signed (kDataWidth-1 downto 0);
+                sDataIn_Q7        : in  signed (kDataWidth-1 downto 0);
+                
+                sDataOut_I0       : out signed (kDataWidth-1 downto 0);
+                sDataOut_I1       : out signed (kDataWidth-1 downto 0);
+                sDataOut_I2       : out signed (kDataWidth-1 downto 0);
+                sDataOut_I3       : out signed (kDataWidth-1 downto 0);
+                sDataOut_I4       : out signed (kDataWidth-1 downto 0);
+                sDataOut_I5       : out signed (kDataWidth-1 downto 0);
+                sDataOut_I6       : out signed (kDataWidth-1 downto 0);
+                sDataOut_I7       : out signed (kDataWidth-1 downto 0);
+                
+                sDataOut_Q0       : out signed (kDataWidth-1 downto 0);
+                sDataOut_Q1       : out signed (kDataWidth-1 downto 0);
+                sDataOut_Q2       : out signed (kDataWidth-1 downto 0);
+                sDataOut_Q3       : out signed (kDataWidth-1 downto 0);
+                sDataOut_Q4       : out signed (kDataWidth-1 downto 0);
+                sDataOut_Q5       : out signed (kDataWidth-1 downto 0);
+                sDataOut_Q6       : out signed (kDataWidth-1 downto 0);
+                sDataOut_Q7       : out signed (kDataWidth-1 downto 0);
+                
+                sEnableOut_I      : out std_logic;
+                sEnableOut_Q        : out std_logic);
+	end component;
+
+ 	--carrier recovery
+	component Carrierrecovery_P2 is 
+	  generic(kDataWidth  : positive := 8;
+		  kErrWidth   :positive  :=12;
+		  kSinWidth   : positive :=16);
+	  port(               
+		aReset            : in std_logic;
+		Clk               : in std_logic;
+						
+		-- Input data from timing recovery module
+		sEnableIn         : in std_logic;
+		sInPhase0         : in std_logic_vector(kDataWidth-1 downto 0);
+		sInPhase1         : in std_logic_vector(kDataWidth-1 downto 0);
+		sQuadPhase0       : in std_logic_vector(kDataWidth-1 downto 0);
+		sQuadPhase1       : in std_logic_vector(kDataWidth-1 downto 0);
+		
+		-- Loop status signal, when '1' locked, otherwise not locked
+		--sLockSign         : out std_logic;
+		
+		-- output data ready signal and data
+		sEnableOut        : out std_logic;
+		sInPhaseOut0      : out std_logic_vector(kDataWidth-1 downto 0);
+		sInPhaseOut1      : out std_logic_vector(kDataWidth-1 downto 0);
+		sQuadPhaseOut0    : out std_logic_vector(kDataWidth-1 downto 0);
+		sQuadPhaseOut1    : out std_logic_vector(kDataWidth-1 downto 0));
+	end component;
+
+	component CreateReset2 is
+        port (
+                Clk_in          : in std_logic;
+                aReset		: out std_logic
+                );
+	end   component; 
+	
+	component pll_DRY_I IS
+	PORT
+	(
+		inclk0		: IN STD_LOGIC  := '0';
+		c0		: OUT STD_LOGIC
+	);
+	END component;
+	
+	component pll_DRY_Q IS
+	PORT
+	(
+		inclk0		: IN STD_LOGIC  := '0';
+		c0		: OUT STD_LOGIC
+	);
+	END component;
+	
+	component pll_1 IS
+	PORT
+	(
+		inclk0		: IN STD_LOGIC  := '0';
+		c0		: OUT STD_LOGIC ;
+		c1		: OUT STD_LOGIC ;
+		c2		: OUT STD_LOGIC 
+	);
+	END component;
+
+	component PN_ERR_Detect IS
+		 PORT
+		(
+		   aReset	:		IN std_logic;
+		   ClockIn:  	IN  STD_LOGIC;
+		   Enable	: 	In	std_logic; --����ʹ���ź�
+		   DataIn	:  	IN  STD_LOGIC; -- ��ͳ������
+		   SyncFlag:  Out  STD_LOGIC;--�������з�����ͬ��ָʾ
+	       Error    : out std_logic;
+		   ErrResult: Out  STD_LOGIC_VECTOR(31 DOWNTO 0) --������������
+		);
+	END component;
+	
+	component	LPF_P8_match	is
+	 generic(
+		kInSize  : positive :=8;
+		kOutSize : positive :=8);
+	port(
+		aReset	: in std_logic;
+		Clk		: in std_logic;
+		cDin0	: in std_logic_vector(kInSize-1 downto 0);
+		cDin1	: in std_logic_vector(kInSize-1 downto 0);
+		cDin2	: in std_logic_vector(kInSize-1 downto 0);
+		cDin3	: in std_logic_vector(kInSize-1 downto 0);
+		cDin4	: in std_logic_vector(kInSize-1 downto 0);
+		cDin5	: in std_logic_vector(kInSize-1 downto 0);
+		cDin6	: in std_logic_vector(kInSize-1 downto 0);
+		cDin7	: in std_logic_vector(kInSize-1 downto 0);
+		enable_in : in std_logic; --�ֶ�����
+		cDout0	: out std_logic_vector(kOutSize-1 downto 0);
+		cDout1	: out std_logic_vector(kOutSize-1 downto 0);
+		cDout2	: out std_logic_vector(kOutSize-1 downto 0);
+		cDout3	: out std_logic_vector(kOutSize-1 downto 0);
+		cDout4	: out std_logic_vector(kOutSize-1 downto 0);
+		cDout5	: out std_logic_vector(kOutSize-1 downto 0);
+		cDout6	: out std_logic_vector(kOutSize-1 downto 0);
+		cDout7	: out std_logic_vector(kOutSize-1 downto 0);
+		enable_out : out std_logic --�ֶ�����
+		);
+	end	component;
+	
+	component TimerecoveryP8_v2 is
+        generic (
+                kDecimateRate   : positive := 13; -- bit width of Fraction decimate
+                kCountWidth     : positive := 4;  -- bit width of the Counter,it is used in Interpolator.(attention: this parameter must be 4 under 8 parallel condition)
+                kDelay          : positive :=10;   -- delay of the Interpolate Controller.
+                kDataWidth      : positive :=8;
+                kErrorWidth     : positive :=16;
+                kKpSize         : positive :=3;
+                kKiSize         : positive :=3);  -- bit width of the input data.
+        port (
+                aReset          : in std_logic;
+                Clk_in          : in std_logic;
+                sEnable         : in std_logic;
+                
+                sDataInPhase0   : in signed (kDataWidth-1 downto 0);
+                sDataInPhase1   : in signed (kDataWidth-1 downto 0);
+                sDataInPhase2   : in signed (kDataWidth-1 downto 0);
+                sDataInPhase3   : in signed (kDataWidth-1 downto 0);
+                sDataInPhase4   : in signed (kDataWidth-1 downto 0);
+                sDataInPhase5   : in signed (kDataWidth-1 downto 0);
+                sDataInPhase6   : in signed (kDataWidth-1 downto 0);
+                sDataInPhase7   : in signed (kDataWidth-1 downto 0);
+
+                sDataQuadPhase0   : in signed (kDataWidth-1 downto 0);
+                sDataQuadPhase1   : in signed (kDataWidth-1 downto 0);
+                sDataQuadPhase2   : in signed (kDataWidth-1 downto 0);
+                sDataQuadPhase3   : in signed (kDataWidth-1 downto 0);
+                sDataQuadPhase4   : in signed (kDataWidth-1 downto 0);
+                sDataQuadPhase5   : in signed (kDataWidth-1 downto 0);
+                sDataQuadPhase6   : in signed (kDataWidth-1 downto 0);
+                sDataQuadPhase7   : in signed (kDataWidth-1 downto 0);
+                
+                -- recovered symbols
+                sInPhaseOut0      : out signed(kDataWidth-1 downto 0);
+                sInPhaseOut1      : out signed(kDataWidth-1 downto 0);
+                sInPhaseOut2      : out signed(kDataWidth-1 downto 0);
+                sInPhaseOut3      : out signed(kDataWidth-1 downto 0);
+                sQuadPhaseOut0    : out signed(kDataWidth-1 downto 0);
+                sQuadPhaseOut1    : out signed(kDataWidth-1 downto 0);
+                sQuadPhaseOut2    : out signed(kDataWidth-1 downto 0);
+                sQuadPhaseOut3    : out signed(kDataWidth-1 downto 0);
+                sEnableOut        : out std_logic);
+		--				sLockSign		  : out std_logic);
+	end   component;  
+		
+
+	component LVDS_RX_32to64 IS
+	PORT
+	(
+		rx_in		: IN STD_LOGIC_VECTOR (31 DOWNTO 0);
+		rx_inclock		: IN STD_LOGIC ;
+		rx_out		: OUT STD_LOGIC_VECTOR (63 DOWNTO 0)
+	);
+	end  component;
+	
+	component datain_lvds is 
+    generic(
+		kInSize : positive :=64 ;
+		kOutSize : positive :=64  );
+     port (
+      aReset          : in  std_logic; 
+      clk             : in  std_logic;
+      datain          : in  std_logic_vector(kInSize-1 downto 0);
+      dataout         : out std_logic_vector(kOutSize-1 downto 0)
+      
+     );
+	end component;
+	
+	component Diff_Decoder_P2 is 
+    port (
+      aReset          : in  std_logic; 
+      clk             : in  std_logic;
+      datain_i        : in  std_logic_vector(1 downto 0);
+      datain_q        : in  std_logic_vector(1 downto 0);
+      datain_valid    : in  std_logic;
+      
+      dataout_i       : out  std_logic_vector(1 downto 0);
+      dataout_q       : out  std_logic_vector(1 downto 0);
+      dataout_valid   : out  std_logic        
+     );
+	end component;
+	
+	component Create_Dclk_rst is
+        port (
+                Clk_in          : in std_logic;
+                Dclk_rst        : out std_logic
+                );
+	end component;
+	
+	component fifo_4_2 IS
+	PORT
+	(
+		aclr		: IN STD_LOGIC  := '0';
+		data		: IN STD_LOGIC_VECTOR (63 DOWNTO 0);
+		rdclk		: IN STD_LOGIC ;
+		rdreq		: IN STD_LOGIC ;
+		wrclk		: IN STD_LOGIC ;
+		wrreq		: IN STD_LOGIC ;
+		q		: OUT STD_LOGIC_VECTOR (31 DOWNTO 0);
+		rdusedw		: OUT STD_LOGIC_VECTOR (4 DOWNTO 0);
+		wrfull		: OUT STD_LOGIC 
+	);
+	END component;
+	
+	component ROM_InitConfig IS
+	PORT
+	(
+		address		: IN STD_LOGIC_VECTOR (4 DOWNTO 0);
+		clock		: IN STD_LOGIC ;
+		q		: OUT STD_LOGIC_VECTOR (127 DOWNTO 0)
+	);
+	END component;
+	
+	 component EtherNet_ctrl is
+	 port
+	 (
+		aReset : in std_logic;
+		RxClk : in std_logic;   --Pin, from GE chip
+		RxDV :  in std_logic;   --Pin, from GE chip
+		RxErr : in std_logic;   --Pin, from GE chip
+		RxDatIn : in std_logic_vector( 7 downto 0 );  --Pin, from GE chip
+		ff_rx_clk : in std_logic;  --��������ȡMAC��FIFO���ݵ�ʱ��   ff means fifo?
+		--Clk50M : in std_logic;
+	  
+		RxDatOut : out std_logic_vector( 31 downto 0);  -- MAC��-->������, data
+		RxDVOut : out std_logic;         -- MAC��-->������, valid
+		RxSopOut : out std_logic; 
+		RxEopOut : out std_logic 
+    );
+	 end component;
+	 
+	component pll_XOClk IS
+	PORT
+	(
+		inclk0		: IN STD_LOGIC  := '0';
+		c0		: OUT STD_LOGIC 
+	);
+   END component;
+	
+	component pll_GE_RxClk IS
+	PORT
+	(
+		inclk0		: IN STD_LOGIC  := '0';
+		c0		: OUT STD_LOGIC 
+	);
+	END component;
+	
+	component CreateReset2_GE is
+        port (
+                Clk_in          : in std_logic;
+                aReset		: out std_logic
+                );
+	end   component; 
+	
+	component GE_ctrl is
+	port (
+		aReset         : in  std_logic; 
+		clk_in       	: in  std_logic;
+		clk_out			: in  std_logic;
+		data_in			: in  std_logic_vector(31 downto 0);
+		valid_in			: in  std_logic;
+		sop_in			: in  std_logic;
+		eop_in			: in  std_logic;
+		
+		aReset_out		: out std_logic;
+		SampleRate		: out std_logic_vector(19 downto 0);
+	   DecRateFraction	: out std_logic_vector(12 downto 0);
+		ReDecRateFraction	: out std_logic_vector(12 downto 0)		
+      
+     );
+	end component;
+	
+	component DownConvert is 
+    generic (
+      kInSize      : positive := 8;
+      kOutSize     : positive := 8;
+      kNCOSize	   : positive := 16
+     );
+    port (
+		--mode : in std_logic_vector(1 downto 0);
+      aReset            : in std_logic;   
+      clk               : in std_logic; 
+      AD_sample0        : in std_logic_vector (kInsize-1 downto 0);
+	  AD_sample1        : in std_logic_vector (kInsize-1 downto 0);
+	  AD_sample2        : in std_logic_vector (kInsize-1 downto 0);
+	  AD_sample3        : in std_logic_vector (kInsize-1 downto 0);
+	  AD_sample4        : in std_logic_vector (kInsize-1 downto 0);
+	  AD_sample5        : in std_logic_vector (kInsize-1 downto 0);
+	  AD_sample6        : in std_logic_vector (kInsize-1 downto 0);
+	  AD_sample7        : in std_logic_vector (kInsize-1 downto 0);
+		
+	  InPhase0			: out std_logic_vector (kOutsize-1 downto 0);
+	  InPhase1			: out std_logic_vector (kOutsize-1 downto 0);
+	  InPhase2			: out std_logic_vector (kOutsize-1 downto 0);
+	  InPhase3			: out std_logic_vector (kOutsize-1 downto 0);
+	  InPhase4			: out std_logic_vector (kOutsize-1 downto 0);
+	  InPhase5			: out std_logic_vector (kOutsize-1 downto 0);
+	  InPhase6			: out std_logic_vector (kOutsize-1 downto 0);
+	  InPhase7			: out std_logic_vector (kOutsize-1 downto 0);
+	  
+	  QuadPhase0		: out std_logic_vector (kOutsize-1 downto 0);
+	  QuadPhase1		: out std_logic_vector (kOutsize-1 downto 0);
+	  QuadPhase2		: out std_logic_vector (kOutsize-1 downto 0);
+	  QuadPhase3		: out std_logic_vector (kOutsize-1 downto 0);
+	  QuadPhase4		: out std_logic_vector (kOutsize-1 downto 0);
+	  QuadPhase5		: out std_logic_vector (kOutsize-1 downto 0);
+	  QuadPhase6		: out std_logic_vector (kOutsize-1 downto 0);
+	  QuadPhase7		: out std_logic_vector (kOutsize-1 downto 0)
+     );
+end component;
+
+component	LPF_P8_D2	is
+	 generic(
+		kInSize  : positive :=8;
+		kOutSize : positive :=8);
+port(
+		aReset	: in std_logic;
+		Clk		: in std_logic;
+		cDin0	: in std_logic_vector(kInSize-1 downto 0);
+		cDin1	: in std_logic_vector(kInSize-1 downto 0);
+		cDin2	: in std_logic_vector(kInSize-1 downto 0);
+		cDin3	: in std_logic_vector(kInSize-1 downto 0);
+		cDin4	: in std_logic_vector(kInSize-1 downto 0);
+		cDin5	: in std_logic_vector(kInSize-1 downto 0);
+		cDin6	: in std_logic_vector(kInSize-1 downto 0);
+		cDin7	: in std_logic_vector(kInSize-1 downto 0);
+		cDout0	: out std_logic_vector(kOutSize-1 downto 0);
+		cDout1	: out std_logic_vector(kOutSize-1 downto 0);
+		cDout2	: out std_logic_vector(kOutSize-1 downto 0);
+		cDout3	: out std_logic_vector(kOutSize-1 downto 0)
+		);
+end	component;
+
+component	P4toP8_8	is
+	 generic(
+		kDataWidth  : positive :=8 );
+port(
+		aReset	: in std_logic;
+		clk_in		: in std_logic;
+		clk_out		: in std_logic;
+		data_in1		: in std_logic_vector(kDataWidth-1 downto 0);
+		data_in2		: in std_logic_vector(kDataWidth-1 downto 0);
+		data_in3		: in std_logic_vector(kDataWidth-1 downto 0);
+		data_in4		: in std_logic_vector(kDataWidth-1 downto 0);
+		valid_in	: in std_logic;
+
+		data_out1		: out std_logic_vector(kDataWidth-1 downto 0);
+		data_out2		: out std_logic_vector(kDataWidth-1 downto 0);
+		data_out3		: out std_logic_vector(kDataWidth-1 downto 0);
+		data_out4		: out std_logic_vector(kDataWidth-1 downto 0);
+		data_out5		: out std_logic_vector(kDataWidth-1 downto 0);
+		data_out6		: out std_logic_vector(kDataWidth-1 downto 0);
+		data_out7		: out std_logic_vector(kDataWidth-1 downto 0);
+		data_out8		: out std_logic_vector(kDataWidth-1 downto 0);
+		valid_out	: out std_logic
+		);
+end	component;
+
+entity	shapingfilter_p8	is
+	 generic(
+		kInSize  : positive :=8;
+		kOutSize : positive :=8);
+port(
+		aReset	: in std_logic;
+		Clk		: in std_logic;
+		cDin0	: in std_logic_vector(kInSize-1 downto 0);
+		cDin1	: in std_logic_vector(kInSize-1 downto 0);
+		cDin2	: in std_logic_vector(kInSize-1 downto 0);
+		cDin3	: in std_logic_vector(kInSize-1 downto 0);
+		cDin4	: in std_logic_vector(kInSize-1 downto 0);
+		cDin5	: in std_logic_vector(kInSize-1 downto 0);
+		cDin6	: in std_logic_vector(kInSize-1 downto 0);
+		cDin7	: in std_logic_vector(kInSize-1 downto 0);
+		cDout0	: out std_logic_vector(kOutSize-1 downto 0);
+		cDout1	: out std_logic_vector(kOutSize-1 downto 0);
+		cDout2	: out std_logic_vector(kOutSize-1 downto 0);
+		cDout3	: out std_logic_vector(kOutSize-1 downto 0);
+		cDout4	: out std_logic_vector(kOutSize-1 downto 0);
+		cDout5	: out std_logic_vector(kOutSize-1 downto 0);
+		cDout6	: out std_logic_vector(kOutSize-1 downto 0);
+		cDout7	: out std_logic_vector(kOutSize-1 downto 0)
+		);
+end	shapingfilter_p8;
+
+	--------------------------component declare(end)--------------------------
+
+	--************************************************************************
+	
+	--------------------------signal define(start)----------------------------
+	-- Clock
+	--signal pclk_I, pclk_Q : std_logic;
+	-- Reset
+	--signal aReset, aReset_pclk_I, aReset_pclk_I_reg 	: std_logic;
+	-- reset signal for 2 ADC chips
+	signal  Dclk_rst : std_logic;
+	
+	type InputDataArray is array (natural range  <>) of std_logic_vector(kInSize-1 downto 0);
+	type InputData_SignedArray is array (natural range  <>) of signed(kInSize-1 downto 0);
+	
+	--signal for Input Stage
+	signal AD_I_datain, AD_Q_datain : std_logic_vector(4*kInSize-1 downto 0);
+	signal AD_I_LVDS, AD_Q_LVDS, AD_I_t, AD_Q_t: std_logic_vector(8*kInSize-1 downto 0);
+	signal AD_I, AD_Q: InputDataArray (7 downto 0);
+	
+	--signal for Down Convert
+	signal DownCvrt_out_I, DownCvrt_out_Q : InputDataArray(7 downto 0);
+
+	--signal for samplerate,decratefraction and redecratefraction
+	type SampleRateArray is array (natural range <>) of std_logic_vector(19 downto 0);
+	type DecRateFractionArray is array (natural range <>) of std_logic_vector(12 downto 0);
+	
+	signal SampleRate,SampleRate0,SampleRate1			: std_logic_vector(19 downto 0);--SampleRateArray(0 downto 0);
+	signal DecRateFraction, DecRateFraction0,DecRateFraction1 	: std_logic_vector(12 downto 0);--DecRateFractionArray(0 downto 0);    --����������ȡ��
+	signal ReDecRateFraction, ReDecRateFraction0,ReDecRateFraction1	: std_logic_vector(12 downto 0);--DecRateFractionArray(0 downto 0); --����������ȡ�ʵĵ���
+	
+	signal  Dec_Int_out_I, Dec_Int_out_Q, Dec_Frac_out_I, Dec_Frac_out_Q :  InputData_SignedArray( 7 downto 0);         
+	signal  Enable_Dec_Int_out_I, Enable_Dec_Int_out_Q, Enable_Dec_Frac_out_I, Enable_Dec_Frac_out_Q : std_logic;
+	
+	signal  Init_data : std_logic_vector( 127 downto 0);
+	
+	--signal for TR
+	signal TR_in_I, TR_in_Q     : InputDataArray(7 downto 0);
+	signal TR_in_I_s, TR_in_Q_s : InputDataArray(7 downto 0);		
+	signal TR_in_I_p4, TR_in_Q_p4 : InputDataArray(3 downto 0);
+	signal TR_out_I, TR_out_Q : InputDataArray(3 downto 0);
+	signal TR_out_enable , TR_in_enable : std_logic;
+
+	--signal for FIFO between TR and CR
+	signal fifo_in_TR : std_logic_vector(8*kInSize-1 downto 0);
+	signal fifo_out_CR : std_logic_vector(4*kInSize-1 downto 0);
+	signal rdreq_CR , wrfull_TR: std_logic;
+	signal rdusedw_CR	: std_logic_vector(4 downto 0);
+	
+	--signal for CR
+	signal CR_in_I, CR_in_Q, CR_out_I, CR_out_Q : InputDataArray(1 downto 0);
+	signal CR_in_enable, CR_out_enable : std_logic;
+	
+	--signal for differential decode module output
+	signal cDataIn_DiffDec, cDataQuad_DiffDec : std_logic_vector(1 downto 0);
+	signal cEnable_DiffDec : std_logic;
+	
+	signal GE_RxClk_Inverse : std_logic;
+	signal ff_rx_clk, Clk50M : std_logic;
+	signal GE_ctrl_valid, GE_ctrl_sop, GE_ctrl_eop : std_logic;
+	signal GE_ctrl_data : std_logic_vector( 31 downto 0 );
+	signal aReset_GE : std_logic;
+	-- signal for PN23 Error Detect
+
+	--------------------------signal define(end)------------------------------
+begin	
+--		--AD�����źţ���SPI�ص�ģʽ
+--		SCLK_I <= '1';
+--		--SDATA_I : out std_logic;
+--		SCS_I <= '0';
+--		FSR_I <= '1';
+--		SCLK_Q <= '1';
+--		--SDATA_Q : out std_logic;
+--		SCS_Q <= '0';
+--		FSR_Q <= '1';
+--	
+--	
+--	pll_DRY_I_inst: pll_DRY_I 
+--	port map
+--	(
+--		inclk0		=> Dclk_I,
+--		c0		=> pclk_I
+--	);
+--
+--	pll_DRY_Q_inst: pll_DRY_Q 
+--	port map
+--	(
+--		inclk0		=> Dclk_Q,
+--		c0		=> pclk_Q
+--	);
+--	
+--
+----	-- Reset
+----	CreateReset2_inst: CreateReset2 
+----        port map(
+----                Clk_in      => pClk_I,
+----                aReset		=> aReset
+----                );
+--	
+--    -- Reset for ADC
+--    Create_Dclk_rst_inst: Create_Dclk_rst 
+--        port map(
+--                Clk_in         => pclk_I,
+--                Dclk_rst       => Dclk_rst
+--                );
+--	 Dclk_rst_I <= Dclk_rst;
+--    Dclk_rst_Q <= Dclk_rst; 
+--	 
+--		-- Get sync reset from async reset input
+--		-- cascaded reset structure    �ο���Best Practices for Incremental Compilation Partitions and Floorplan Assignments��
+--		-- ������aReset�����ⲿ���룬����ǡ����pclk_I���������Կ���Ҳʡ��
+----		process(aReset,pclk_I)
+----		begin
+----			if aReset = '1' then
+----				aReset_pclk_I_reg <= '1';
+----				aReset_pclk_I <= '1';
+----			elsif rising_edge( pclk_I ) then
+----				aReset_pclk_I_reg <= '0';
+----				aReset_pclk_I <= aReset_pclk_I_reg;
+----			end if;
+----		end process;
+--   
+--	-- LVDS����ģ�飬ͬʱʵ��32bit-->64bit����ת����DDR���ݣ�����������300M��ʱ��150M��register outputs
+-- 	AD_I_datain <= AD_I_d & AD_I_c & AD_I_b & AD_I_a;
+--	LVDS_RX_32to64_I_inst: LVDS_RX_32to64
+--	PORT map
+--	(
+--		rx_in		=> AD_I_datain,
+--		rx_inclock		=> pclk_I,
+--		rx_out		=> AD_I_LVDS
+--	);
+--	AD_Q_datain <= AD_Q_d & AD_Q_c & AD_Q_b & AD_Q_a;
+--	LVDS_RX_32to64_Q_inst: LVDS_RX_32to64
+--	PORT map
+--	(
+--		rx_in		=> AD_Q_datain,
+--		rx_inclock		=> pclk_Q,
+--		rx_out		=> AD_Q_LVDS
+--	);
+--	
+--	--��������
+--	d_lvds_i_inst: datain_lvds
+--    generic map(
+--		64 ,
+--		64 )
+--     port map(
+--      aReset          => aReset,
+--      clk             => pclk_I,
+--      datain          => AD_I_LVDS,
+--      dataout         => AD_I_t
+--     );
+--     
+--    d_lvds_q_inst: datain_lvds 
+--    generic map(
+--		64 ,
+--		64 )
+--     port map(
+--      aReset          => aReset,
+--      clk             => pclk_Q,
+--      datain          => AD_Q_LVDS,
+--      dataout         => AD_Q_t
+--     );
+--	
+--	-- Input Stage : �������źŽ��б�Ҫ���������桢�˲���
+--	Input_stage_inst :  Input_stage
+--	generic map(
+--		kInSize => 8,
+--		kOutSize => 8 )
+--	port map(
+--		aReset          => aReset, 
+--		clk             => pclk_I,
+--		clk_Q				 => pclk_Q,
+--		
+--		cDin0_I		=> AD_I_t(7 downto 0),  
+--		cDin1_I		=> AD_I_t(15 downto 8), 
+--		cDin2_I		=> AD_I_t(23 downto 16),
+--		cDin3_I		=> AD_I_t(31 downto 24),
+--		cDin4_I		=> AD_I_t(39 downto 32),
+--		cDin5_I		=> AD_I_t(47 downto 40),
+--		cDin6_I		=> AD_I_t(55 downto 48),
+--		cDin7_I		=> AD_I_t(63 downto 56),
+--		
+--		cDin0_Q		=> AD_Q_t(7 downto 0),  
+--		cDin1_Q		=> AD_Q_t(15 downto 8), 
+--		cDin2_Q		=> AD_Q_t(23 downto 16),
+--		cDin3_Q		=> AD_Q_t(31 downto 24),
+--		cDin4_Q		=> AD_Q_t(39 downto 32),
+--		cDin5_Q		=> AD_Q_t(47 downto 40),
+--		cDin6_Q		=> AD_Q_t(55 downto 48),
+--		cDin7_Q		=> AD_Q_t(63 downto 56),
+--		
+--		cDout0_I	=> AD_I(0),
+--		cDout1_I	=> AD_I(1),
+--		cDout2_I	=> AD_I(2),
+--		cDout3_I	=> AD_I(3),
+--		cDout4_I	=> AD_I(4),
+--		cDout5_I	=> AD_I(5),
+--		cDout6_I	=> AD_I(6),
+--		cDout7_I	=> AD_I(7),
+--			
+--		cDout0_Q	=> AD_Q(0),
+--		cDout1_Q	=> AD_Q(1),
+--		cDout2_Q	=> AD_Q(2),
+--		cDout3_Q	=> AD_Q(3),
+--		cDout4_Q	=> AD_Q(4),
+--		cDout5_Q	=> AD_Q(5),
+--		cDout6_Q	=> AD_Q(6),
+--		cDout7_Q	=> AD_Q(7) 
+--      
+--     );
+--	  
+--	 pll_XOClk_inst :  pll_XOClk
+--	 PORT map
+--	 (
+--		inclk0		=> XOClk, --60MHz
+--		c0		=> ff_rx_clk    --20MHz
+--	  );
+--	  
+--	 CreateReset2_GE_inst : CreateReset2_GE 
+--        port map(
+--                Clk_in      => ff_rx_clk,
+--                aReset		 => aReset_GE
+--                );
+	
+	DownConvert_inst : DownConvert 
+    generic map(
+      kInSize   => 8,
+      kOutSize  => 8,
+      kNCOSize	 => 16
+     )
+    port map(
+      aReset            => aReset,   
+      clk               => clk_100, 
+      AD_sample0        => AD_d0,
+	  AD_sample1        => AD_d1,
+	  AD_sample2        => AD_d2,
+	  AD_sample3        => AD_d3,
+	  AD_sample4        => AD_d4,
+	  AD_sample5        => AD_d5,
+	  AD_sample6        => AD_d6,
+	  AD_sample7        => AD_d7,
+		
+	  InPhase0			=> DownCvrt_out_I(0),
+	  InPhase1			=> DownCvrt_out_I(1),
+	  InPhase2			=> DownCvrt_out_I(2),
+	  InPhase3			=> DownCvrt_out_I(3),
+	  InPhase4			=> DownCvrt_out_I(4),
+	  InPhase5			=> DownCvrt_out_I(5),
+	  InPhase6			=> DownCvrt_out_I(6),
+	  InPhase7			=> DownCvrt_out_I(7),
+	  
+	  QuadPhase0		=> DownCvrt_out_Q(0),
+	  QuadPhase1		=> DownCvrt_out_Q(1),
+	  QuadPhase2		=> DownCvrt_out_Q(2),
+	  QuadPhase3		=> DownCvrt_out_Q(3),
+	  QuadPhase4		=> DownCvrt_out_Q(4),
+	  QuadPhase5		=> DownCvrt_out_Q(5),
+	  QuadPhase6		=> DownCvrt_out_Q(6),
+	  QuadPhase7		=> DownCvrt_out_Q(7)
+     );
+
+					 
+	
+	----  Decimate Filter  and   Matching Filter
+	LPF_P8_D2_instI :	LPF_P8_D2	
+	 generic map(
+		kInSize  => 8,
+		kOutSize => 8)
+	port map(
+		aReset	=> aReset,
+		Clk		=> clk_100,
+		cDin0	=> DownCvrt_out_I(0),
+		cDin1	=> DownCvrt_out_I(1),
+		cDin2	=> DownCvrt_out_I(2),
+		cDin3	=> DownCvrt_out_I(3),
+		cDin4	=> DownCvrt_out_I(4),
+		cDin5	=> DownCvrt_out_I(5),
+		cDin6	=> DownCvrt_out_I(6),
+		cDin7	=> DownCvrt_out_I(7),
+		cDout0	=> TR_in_I_p4(0),
+		cDout1	=> TR_in_I_p4(1),
+		cDout2	=> TR_in_I_p4(2),
+		cDout3	=> TR_in_I_p4(3)
+		);
+		
+		
+	LPF_P8_D2_instQ :	LPF_P8_D2	
+	 generic map(
+		kInSize  => 8,
+		kOutSize => 8)
+	port map(
+		aReset	=> aReset,
+		Clk		=> clk_100,
+		cDin0	=> DownCvrt_out_Q(0),
+		cDin1	=> DownCvrt_out_Q(1),
+		cDin2	=> DownCvrt_out_Q(2),
+		cDin3	=> DownCvrt_out_Q(3),
+		cDin4	=> DownCvrt_out_Q(4),
+		cDin5	=> DownCvrt_out_Q(5),
+		cDin6	=> DownCvrt_out_Q(6),
+		cDin7	=> DownCvrt_out_Q(7),
+		cDout0	=> TR_in_Q_p4(0),
+		cDout1	=> TR_in_Q_p4(1),
+		cDout2	=> TR_in_Q_p4(2),
+		cDout3	=> TR_in_Q_p4(3)
+		);
+	
+	P4toP8_8_instI :	P4toP8_8	
+	 generic map(
+		kDataWidth  => 8 )
+	port map(
+		aReset		=> aReset,
+		clk_in		=> clk_100,
+		clk_out		=> pclk_I,
+		data_in1		=> TR_in_I_p4(0),
+		data_in2		=> TR_in_I_p4(1),
+		data_in3		=> TR_in_I_p4(2),
+		data_in4		=> TR_in_I_p4(3),
+		valid_in	=> '1',
+
+		data_out1		=> TR_in_I_s(0),
+		data_out2		=> TR_in_I_s(1),
+		data_out3		=> TR_in_I_s(2),
+		data_out4		=> TR_in_I_s(3),
+		data_out5		=> TR_in_I_s(4),
+		data_out6		=> TR_in_I_s(5),
+		data_out7		=> TR_in_I_s(6),
+		data_out8		=> TR_in_I_s(7),
+		valid_out	=> open
+		);
+		
+	P4toP8_8_instQ :	P4toP8_8	
+	 generic map(
+		kDataWidth  => 8 )
+	port map(
+		aReset		=> aReset,
+		clk_in		=> clk_100,
+		clk_out		=> pclk_I,
+		data_in1		=> TR_in_Q_p4(0),
+		data_in2		=> TR_in_Q_p4(1),
+		data_in3		=> TR_in_Q_p4(2),
+		data_in4		=> TR_in_Q_p4(3),
+		valid_in	=> '1',
+
+		data_out1		=> TR_in_Q_s(0),
+		data_out2		=> TR_in_Q_s(1),
+		data_out3		=> TR_in_Q_s(2),
+		data_out4		=> TR_in_Q_s(3),
+		data_out5		=> TR_in_Q_s(4),
+		data_out6		=> TR_in_Q_s(5),
+		data_out7		=> TR_in_Q_s(6),
+		data_out8		=> TR_in_Q_s(7),
+		valid_out	=> open
+		);
+		
+inst_shape_I:	shapingfilter_p8	
+generic map(
+		kInSize  => 8,
+		kOutSize => 8)
+port map(
+		aReset	=> aReset ,
+		Clk		=> pclk_I ,
+		cDin0	   => TR_in_I_s(0) ,
+		cDin1    => TR_in_I_s(1) ,
+		cDin2	   => TR_in_I_s(2) ,
+		cDin3	   => TR_in_I_s(3) ,
+		cDin4	   => TR_in_I_s(4) ,
+		cDin5	   => TR_in_I_s(5) ,
+		cDin6	   => TR_in_I_s(6) ,
+		cDin7	   => TR_in_I_s(7) ,
+		cDout0	 => TR_in_I(0)   ,
+		cDout1	 => TR_in_I(1)   ,
+		cDout2	 => TR_in_I(2)   ,
+		cDout3	 => TR_in_I(3)   ,
+		cDout4	 => TR_in_I(4)   ,
+		cDout5	 => TR_in_I(5)   ,
+		cDout6	 => TR_in_I(6)   ,
+		cDout7	 => TR_in_I(7)   ,
+		);
+
+inst_shape_Q:	shapingfilter_p8	
+generic map(
+		kInSize  => 8,
+		kOutSize => 8)
+port map(
+		aReset	=> aReset ,
+		Clk		=> pclk_I ,
+		cDin0	   => TR_in_Q_s(0) ,
+		cDin1    => TR_in_Q_s(1) ,
+		cDin2	   => TR_in_Q_s(2) ,
+		cDin3	   => TR_in_Q_s(3) ,
+		cDin4	   => TR_in_Q_s(4) ,
+		cDin5	   => TR_in_Q_s(5) ,
+		cDin6	   => TR_in_Q_s(6) ,
+		cDin7	   => TR_in_Q_s(7) ,
+		cDout0	 => TR_in_Q(0)   ,
+		cDout1	 => TR_in_Q(1)   ,
+		cDout2	 => TR_in_Q(2)   ,
+		cDout3	 => TR_in_Q(3)   ,
+		cDout4	 => TR_in_Q(4)   ,
+		cDout5	 => TR_in_Q(5)   ,
+		cDout6	 => TR_in_Q(6)   ,
+		cDout7	 => TR_in_Q(7)   ,
+		);					
+		 
+--	----------------------Timer recovery with parallel Gardner algorithm-------------------------start
+    TimerecoveryP8_v2_inst: TimerecoveryP8_v2 
+        generic map(
+                kDecimateRate   => 13,  -- bit width of Fraction decimate
+                kCountWidth     => 4,   -- bit width of the Counter,it is used in Interpolator.(attention: this parameter must be 4 under 8 parallel condition)
+                kDelay          => 10,   -- delay of the Interpolate Controller.
+                kDataWidth      => 8,
+                kErrorWidth     => 16,
+                kKpSize         => 3,
+                kKiSize         => 3)   -- bit width of the input data.
+        port map(
+                aReset          => aReset,
+                Clk_in          => pclk_I,
+                sEnable         => '1', --TR_in_enable,
+                
+                sDataInPhase0   => signed(TR_in_I(0)),
+                sDataInPhase1   => signed(TR_in_I(1)),
+                sDataInPhase2   => signed(TR_in_I(2)),
+                sDataInPhase3   => signed(TR_in_I(3)),
+                sDataInPhase4   => signed(TR_in_I(4)),
+                sDataInPhase5   => signed(TR_in_I(5)),
+                sDataInPhase6   => signed(TR_in_I(6)),
+                sDataInPhase7   => signed(TR_in_I(7)),
+
+                sDataQuadPhase0   => signed(TR_in_Q(0)),
+                sDataQuadPhase1   => signed(TR_in_Q(1)),
+                sDataQuadPhase2   => signed(TR_in_Q(2)),
+                sDataQuadPhase3   => signed(TR_in_Q(3)),
+                sDataQuadPhase4   => signed(TR_in_Q(4)),
+                sDataQuadPhase5   => signed(TR_in_Q(5)),
+                sDataQuadPhase6   => signed(TR_in_Q(6)),
+                sDataQuadPhase7   => signed(TR_in_Q(7)), 
+                
+                -- recovered symbols
+                std_logic_vector(sInPhaseOut0)      => TR_out_I(0),
+                std_logic_vector(sInPhaseOut1)      => TR_out_I(1),
+                std_logic_vector(sInPhaseOut2)      => TR_out_I(2),
+                std_logic_vector(sInPhaseOut3)      => TR_out_I(3),
+                std_logic_vector(sQuadPhaseOut0)    => TR_out_Q(0),
+                std_logic_vector(sQuadPhaseOut1)    => TR_out_Q(1),
+                std_logic_vector(sQuadPhaseOut2)    => TR_out_Q(2),
+                std_logic_vector(sQuadPhaseOut3)    => TR_out_Q(3),
+                sEnableOut        => TR_out_enable
+					 );					 
+--	----------------------Timer recovery with parallel Gardner algorithm-------------------------end
+	
+	fifo_in_TR <= TR_out_Q(3)&TR_out_Q(2)&TR_out_I(3)&TR_out_I(2)&TR_out_Q(1)&TR_out_Q(0)&TR_out_I(1)&TR_out_I(0);
+	fifo_4_2_inst: fifo_4_2 
+	PORT map
+	(
+		aclr		=> aReset, -- ����FIFOʱ��ѡ���ˡ���reset�źŽ���register��ѡ��
+		data		=> fifo_in_TR,
+		rdclk		=> pclk_I,
+		rdreq		=> rdreq_CR,
+		wrclk		=> pclk_I,
+		wrreq		=> TR_out_enable,
+		q		   => fifo_out_CR,
+		rdusedw		=> rdusedw_CR,
+		wrfull		=> open 
+	);
+	process(aReset, pclk_I)
+	begin
+		if aReset = '1' then
+			rdreq_CR <= '0';
+			CR_in_enable <= '0';
+		elsif rising_edge(pclk_I) then
+			if rdusedw_CR(4 downto 3)="00" then
+				rdreq_CR <= '0';
+			else
+				rdreq_CR <= '1';
+			end if;
+			CR_in_enable <= rdreq_CR;
+		end if;
+	end process;
+	
+	CR_in_I(0) <= fifo_out_CR(7 downto 0);
+	CR_in_I(1) <= fifo_out_CR(15 downto 8);
+	CR_in_Q(0) <= fifo_out_CR(23 downto 16);
+	CR_in_Q(1) <= fifo_out_CR(31 downto 24);
+
+--	---------------Carrier recovery with parallel structure --------start
+	Entity_CR: Carrierrecovery_P2  
+	  generic map(8,12,16)
+	  port map(               
+		aReset            => aReset,
+		Clk               => pclk_I,
+						
+		-- Input data from timing recovery module
+		sEnableIn         => CR_in_enable,
+		sInPhase0         => CR_in_I(0),
+		sQuadPhase0       => CR_in_Q(0),
+		sInPhase1         => CR_in_I(1),
+		sQuadPhase1       => CR_in_Q(1),
+		
+		-- Loop status signal, when '1' locked, otherwise not locked
+		--sLockSign         => open,
+		
+		-- output data ready signal and data
+		sEnableOut        => CR_out_enable,
+		sInPhaseOut0      => CR_out_I(0),
+		sQuadPhaseOut0    => CR_out_Q(0),
+		sInPhaseOut1      => CR_out_I(1),
+		sQuadPhaseOut1    => CR_out_Q(1)
+		);
+	---------------Carrier recovery with parallel structure --------end
+----
+----
+------********************************************************************************************************
+
+	
+	Diff_Decoder_P2_inst: Diff_Decoder_P2
+    port map(
+      aReset          => aReset,
+      clk             => pclk_I,
+      datain_i        => not(CR_out_I(1)(CR_out_I(1)'high)) & not(CR_out_I(0)(CR_out_I(0)'high)),
+      datain_q        => not(CR_out_Q(1)(CR_out_Q(1)'high)) & not(CR_out_Q(0)(CR_out_Q(0)'high)),
+      datain_valid    => CR_out_enable,
+      
+      dataout_i       => cDataIn_DiffDec,
+      dataout_q       => cDataQuad_DiffDec,
+      dataout_valid   => cEnable_DiffDec              
+     );
+
+    PN_ERR_Detect_inst_I0: PN_ERR_Detect 
+		 PORT map
+		(
+		   aReset	=> aReset,
+		   ClockIn  => pclk_I,
+		   Enable	=> cEnable_DiffDec,
+		   DataIn	=> cDataIn_DiffDec(0),
+		   SyncFlag => open,
+	       Error    => err_test,
+		   ErrResult => open
+		);
+	PN_ERR_Detect_inst_I1: PN_ERR_Detect 
+		 PORT map
+		(
+		   aReset	=> aReset,
+		   ClockIn  => pclk_I,
+		   Enable	=> cEnable_DiffDec,
+		   DataIn	=> cDataIn_DiffDec(1),
+		   SyncFlag => open,
+	       Error    => open,
+		   ErrResult => open
+		);
+	PN_ERR_Detect_inst_Q0: PN_ERR_Detect 
+		 PORT map
+		(
+		   aReset	=> aReset,
+		   ClockIn  => pclk_I,
+		   Enable	=> cEnable_DiffDec,
+		   DataIn	=> cDataQuad_DiffDec(0),
+		   SyncFlag => open,
+	       Error    => open,
+		   ErrResult => open
+		);
+	PN_ERR_Detect_inst_Q1: PN_ERR_Detect 
+		 PORT map
+		(
+		   aReset	=> aReset,
+		   ClockIn  => pclk_I,
+		   Enable	=> cEnable_DiffDec,
+		   DataIn	=> cDataQuad_DiffDec(1),
+		   SyncFlag => open,
+	       Error    => open,
+		   ErrResult => open
+		);
+	
+
+end rtl;

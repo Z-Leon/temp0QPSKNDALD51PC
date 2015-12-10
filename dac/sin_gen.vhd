@@ -1,0 +1,167 @@
+library ieee;
+use ieee.std_logic_1164.all;
+use ieee.numeric_std.all;
+use ieee.std_logic_unsigned.all;
+
+entity sin_gen is
+port( 	areset : in std_logic;
+		clk : in std_logic;
+		data0 : out std_logic_vector(13 downto 0);
+		data1 : out std_logic_vector(13 downto 0);
+		data2 : out std_logic_vector(13 downto 0);
+		data3 : out std_logic_vector(13 downto 0);
+		data4 : out std_logic_vector(13 downto 0);
+		data5 : out std_logic_vector(13 downto 0);
+		data6 : out std_logic_vector(13 downto 0);
+		data7 : out std_logic_vector(13 downto 0));
+end entity;
+
+architecture rtl of sin_gen is
+
+signal counter : integer range 0 to 7;        
+signal cnt     : std_logic_vector(13 downto 0);
+
+begin
+process(areset ,clk)
+begin
+	if areset = '1' then
+		counter <= 0;
+		data0 <= "00000000000000";
+		data1 <= "00000000000000"; 
+		data2 <= "00000000000000";
+		data3 <= "00000000000000"; 
+		data4 <= "00000000000000";
+		data5 <= "00000000000000"; 
+		data6 <= "00000000000000";
+		data7 <= "00000000000000"; 
+	elsif rising_edge(clk) then
+		if counter = 0 then
+			counter <= 1;
+			data0 <= "00000000000000";  --0
+			data1 <= "01001000011010";  --4634
+			data2 <= "01100110011010";  --6554
+			data3 <= "01001000011010";  --4634
+			data4 <= "00000000000000";  --0
+			data5 <= "10110111100110";  -- -4634
+			data6 <= "10011001100110";  -- -6554
+			data7 <= "10110111100110";  -- -4634
+		elsif  counter = 1 then
+			counter <= 2;
+			data0 <= "00000000000000";  --0
+			data1 <= "01001000011010";  --4634
+			data2 <= "01100110011010";  --6554
+			data3 <= "01001000011010";  --4634
+			data4 <= "00000000000000";  --0
+			data5 <= "10110111100110";  -- -4634
+			data6 <= "10011001100110";  -- -6554
+			data7 <= "10110111100110";  -- -4634
+		elsif  counter = 2 then
+			counter <= 3;
+			data0 <= "00000000000000";  --0
+			data1 <= "01001000011010";  --4634
+			data2 <= "01100110011010";  --6554
+			data3 <= "01001000011010";  --4634
+			data4 <= "00000000000000";  --0
+			data5 <= "10110111100110";  -- -4634
+			data6 <= "10011001100110";  -- -6554
+			data7 <= "10110111100110";  -- -4634
+		elsif  counter = 3 then
+			counter <= 4;
+			data0 <= "00000000000000";  --0
+			data1 <= "01001000011010";  --4634
+			data2 <= "01100110011010";  --6554
+			data3 <= "01001000011010";  --4634
+			data4 <= "00000000000000";  --0
+			data5 <= "10110111100110";  -- -4634
+			data6 <= "10011001100110";  -- -6554
+			data7 <= "10110111100110";  -- -4634
+		elsif  counter = 4 then
+			counter <= 5;
+			data0 <= "00000000000000";  --0
+			data1 <= "01001000011010";  --4634
+			data2 <= "01100110011010";  --6554
+			data3 <= "01001000011010";  --4634
+			data4 <= "00000000000000";  --0
+			data5 <= "10110111100110";  -- -4634
+			data6 <= "10011001100110";  -- -6554
+			data7 <= "10110111100110";  -- -4634
+		elsif  counter = 5 then
+			counter <= 6;
+			data0 <= "00000000000000";  --0
+			data1 <= "01001000011010";  --4634
+			data2 <= "01100110011010";  --6554
+			data3 <= "01001000011010";  --4634
+			data4 <= "00000000000000";  --0
+			data5 <= "10110111100110";  -- -4634
+			data6 <= "10011001100110";  -- -6554
+			data7 <= "10110111100110";  -- -4634
+		elsif  counter = 6 then
+			counter <= 7;
+			data0 <= "00000000000000";  --0
+			data1 <= "01001000011010";  --4634
+			data2 <= "01100110011010";  --6554
+			data3 <= "01001000011010";  --4634
+			data4 <= "00000000000000";  --0
+			data5 <= "10110111100110";  -- -4634
+			data6 <= "10011001100110";  -- -6554
+			data7 <= "10110111100110";  -- -4634
+		else 
+			counter <= 0;
+			data0 <= "00000000000000";  --0
+			data1 <= "01001000011010";  --4634
+			data2 <= "01100110011010";  --6554
+			data3 <= "01001000011010";  --4634
+			data4 <= "00000000000000";  --0
+			data5 <= "10110111100110";  -- -4634
+			data6 <= "10011001100110";  -- -6554
+			data7 <= "10110111100110";  -- -4634
+		end if;
+	end if;
+end process;
+
+
+--process (clk)
+--begin 
+--	if(areset= '1') then
+--		cnt <= (others =>'0');
+--  elsif (rising_edge(clk)) then 
+--  	cnt <= cnt+8 ;
+--  end if;
+--end process;
+--
+--		data0 <= cnt+0 ;
+--		data1 <= cnt+1 ;
+--		data2 <= cnt+2 ;
+--		data3 <= cnt+3 ;
+--		data4 <= cnt+4 ;
+--		data5 <= cnt+5 ;
+--		data6 <= cnt+6 ;
+--		data7 <= cnt+7 ;
+
+  	
+	
+
+end rtl;
+
+
+
+
+
+--data0 <= "00000000000000";  --0
+--			data1 <= "00100111001100";  --2508
+--			data2 <= "01001000011010";  --4634
+--			data3 <= "01011110100111";  --6055
+--			data4 <= "01100110011010";  --6554
+--			data5 <= "01011110100111";  --6055
+--			data6 <= "01001000011010";  --4634
+--			data7 <= "00100111001100";  --2508
+--		elsif  counter = 3 then
+--			counter <= 4;
+--			data0 <= "00000000000000";  --0
+--			data1 <= "11011000110100";  -- -2508
+--			data2 <= "10110111100110";  -- -4634
+--			data3 <= "10100001011001";  -- -6055
+--			data4 <= "10011001100110";  -- -6554
+--			data5 <= "10100001011001";  -- -6055
+--			data6 <= "10110111100110";  -- -4634
+--			data7 <= "11011000110100";  -- -2508

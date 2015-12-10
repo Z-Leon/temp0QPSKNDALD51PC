@@ -1,0 +1,115 @@
+E:/work/2011/10/Demod_Para_v0.1/source/CR_S/SinData_cr.vhd {1 {vcom -work work -2002 -explicit E:/work/2011/10/Demod_Para_v0.1/source/CR_S/SinData_cr.vhd
+Model Technology ModelSim ALTERA vcom 6.6d Compiler 2010.11 Nov  2 2010
+-- Loading package standard
+-- Loading package std_logic_1164
+-- Compiling entity sindata_cr
+-- Compiling architecture syn of sindata_cr
+
+} {} {}} ../Carrierrecovery.VHD {1 {vcom -work work -2002 -explicit E:/work/2011/10/Demod_Para_v0.1/source/CR_S/Carrierrecovery.VHD
+Model Technology ModelSim ALTERA vcom 6.6d Compiler 2010.11 Nov  2 2010
+-- Loading package standard
+-- Loading package std_logic_1164
+-- Loading package numeric_std
+-- Compiling entity carrierrecovery
+-- Compiling architecture rtl of carrierrecovery
+
+} {} {}} E:/work/2011/10/Demod_Para_v0.1/source/CR_S/CosData_cr.vhd {1 {vcom -work work -2002 -explicit E:/work/2011/10/Demod_Para_v0.1/source/CR_S/CosData_cr.vhd
+Model Technology ModelSim ALTERA vcom 6.6d Compiler 2010.11 Nov  2 2010
+-- Loading package standard
+-- Loading package std_logic_1164
+-- Compiling entity cosdata_cr
+-- Compiling architecture syn of cosdata_cr
+
+} {} {}} ../SinData_cr.vhd {1 {vcom -work work -2002 -explicit E:/work/2011/10/Demod_Para_v0.1/source/CR_S/SinData_cr.vhd
+Model Technology ModelSim ALTERA vcom 6.6d Compiler 2010.11 Nov  2 2010
+-- Loading package standard
+-- Loading package std_logic_1164
+-- Compiling entity sindata_cr
+-- Compiling architecture syn of sindata_cr
+
+} {} {}} E:/work/2011/10/Demod_Para_v0.1/source/CR_S/LoopFilter_CR.vhd {1 {vcom -work work -2002 -explicit E:/work/2011/10/Demod_Para_v0.1/source/CR_S/LoopFilter_CR.vhd
+Model Technology ModelSim ALTERA vcom 6.6d Compiler 2010.11 Nov  2 2010
+-- Loading package standard
+-- Loading package std_logic_1164
+-- Loading package numeric_std
+-- Compiling entity loopfilter_cr
+-- Compiling architecture rtl of loopfilter_cr
+
+} {} {}} E:/work/2011/10/Demod_Para_v0.1/source/CR_S/carrierrecovery_tb.vhd {2 {vcom -work work -2002 -explicit E:/work/2011/10/Demod_Para_v0.1/source/CR_S/carrierrecovery_tb.vhd
+Model Technology ModelSim ALTERA vcom 6.6d Compiler 2010.11 Nov  2 2010
+-- Loading package standard
+-- Loading package std_logic_1164
+-- Loading package numeric_std
+-- Loading package textio
+-- Compiling entity carrierrecovery_tb
+-- Compiling architecture carrierrecovery_tb_arch of carrierrecovery_tb
+** Warning: E:/work/2011/10/Demod_Para_v0.1/source/CR_S/carrierrecovery_tb.vhd(69): (vcom-1194) FILE declaration was written using VHDL 1987 syntax.
+** Warning: E:/work/2011/10/Demod_Para_v0.1/source/CR_S/carrierrecovery_tb.vhd(99): (vcom-1194) FILE declaration was written using VHDL 1987 syntax.
+
+} {} {}} ../Phase_Revolve.vhd {1 {vcom -work work -2002 -explicit E:/work/2011/10/Demod_Para_v0.1/source/CR_S/Phase_Revolve.vhd
+Model Technology ModelSim ALTERA vcom 6.6d Compiler 2010.11 Nov  2 2010
+-- Loading package standard
+-- Loading package std_logic_1164
+-- Loading package numeric_std
+-- Compiling entity phase_revolve
+-- Compiling architecture rtl of phase_revolve
+
+} {} {}} ../CosData_cr.vhd {1 {vcom -work work -2002 -explicit E:/work/2011/10/Demod_Para_v0.1/source/CR_S/CosData_cr.vhd
+Model Technology ModelSim ALTERA vcom 6.6d Compiler 2010.11 Nov  2 2010
+-- Loading package standard
+-- Loading package std_logic_1164
+-- Compiling entity cosdata_cr
+-- Compiling architecture syn of cosdata_cr
+
+} {} {}} ../carrierrecovery_tb.vhd {2 {vcom -work work -2002 -explicit E:/work/2011/10/Demod_Para_v0.1/source/CR_S/carrierrecovery_tb.vhd
+Model Technology ModelSim ALTERA vcom 6.6d Compiler 2010.11 Nov  2 2010
+-- Loading package standard
+-- Loading package std_logic_1164
+-- Loading package numeric_std
+-- Loading package textio
+-- Compiling entity carrierrecovery_tb
+-- Compiling architecture carrierrecovery_tb_arch of carrierrecovery_tb
+** Warning: E:/work/2011/10/Demod_Para_v0.1/source/CR_S/carrierrecovery_tb.vhd(72): (vcom-1194) FILE declaration was written using VHDL 1987 syntax.
+** Warning: E:/work/2011/10/Demod_Para_v0.1/source/CR_S/carrierrecovery_tb.vhd(105): (vcom-1194) FILE declaration was written using VHDL 1987 syntax.
+
+} {} {}} E:/work/2011/10/Demod_Para_v0.1/source/CR_S/Carrierrecovery.VHD {1 {vcom -work work -2002 -explicit E:/work/2011/10/Demod_Para_v0.1/source/CR_S/Carrierrecovery.VHD
+Model Technology ModelSim ALTERA vcom 6.6d Compiler 2010.11 Nov  2 2010
+-- Loading package standard
+-- Loading package std_logic_1164
+-- Loading package numeric_std
+-- Compiling entity carrierrecovery
+-- Compiling architecture rtl of carrierrecovery
+
+} {} {}} ../PF_Err_Detect.vhd {1 {vcom -work work -2002 -explicit E:/work/2011/10/Demod_Para_v0.1/source/CR_S/PF_Err_Detect.vhd
+Model Technology ModelSim ALTERA vcom 6.6d Compiler 2010.11 Nov  2 2010
+-- Loading package standard
+-- Loading package std_logic_1164
+-- Loading package numeric_std
+-- Compiling entity pf_err_detect
+-- Compiling architecture rtl of pf_err_detect
+
+} {} {}} E:/work/2011/10/Demod_Para_v0.1/source/CR_S/Phase_Revolve.vhd {1 {vcom -work work -2002 -explicit E:/work/2011/10/Demod_Para_v0.1/source/CR_S/Phase_Revolve.vhd
+Model Technology ModelSim ALTERA vcom 6.6d Compiler 2010.11 Nov  2 2010
+-- Loading package standard
+-- Loading package std_logic_1164
+-- Loading package numeric_std
+-- Compiling entity phase_revolve
+-- Compiling architecture rtl of phase_revolve
+
+} {} {}} E:/work/2011/10/Demod_Para_v0.1/source/CR_S/PF_Err_Detect.vhd {1 {vcom -work work -2002 -explicit E:/work/2011/10/Demod_Para_v0.1/source/CR_S/PF_Err_Detect.vhd
+Model Technology ModelSim ALTERA vcom 6.6d Compiler 2010.11 Nov  2 2010
+-- Loading package standard
+-- Loading package std_logic_1164
+-- Loading package numeric_std
+-- Compiling entity pf_err_detect
+-- Compiling architecture rtl of pf_err_detect
+
+} {} {}} ../LoopFilter_CR.vhd {1 {vcom -work work -2002 -explicit E:/work/2011/10/Demod_Para_v0.1/source/CR_S/LoopFilter_CR.vhd
+Model Technology ModelSim ALTERA vcom 6.6d Compiler 2010.11 Nov  2 2010
+-- Loading package standard
+-- Loading package std_logic_1164
+-- Loading package numeric_std
+-- Compiling entity loopfilter_cr
+-- Compiling architecture rtl of loopfilter_cr
+
+} {} {}}

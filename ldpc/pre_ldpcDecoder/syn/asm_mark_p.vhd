@@ -1,0 +1,550 @@
+-------------------------------------------------------------------------------
+--
+-- File: asm_mark_p.v
+-- Author: wency 
+-- Original Project: 
+-- Date: 2010.10
+--
+-------------------------------------------------------------------------------
+--
+-- (c) 2010 Copyright Wireless Broadband Transmission Lab
+-- All Rights Reserved
+-- EE Dept. at Tsinghua University.
+--
+-------------------------------------------------------------------------------
+--
+-- Purpose: 
+-- This file is to find correlation peak of incoming data and frame syn maker
+-- output o_src_asm(i) is 1 at position of the start of frame
+-- This file is a parallel version based on asm_mark_p.v written by wxf
+-------------------------------------------------------------------------------
+
+library IEEE;
+--use ieee.numeric_std.all;
+use ieee.std_logic_1164.all;
+use ieee.std_logic_unsigned.all;
+
+entity	asm_mark_p	 is         
+port(
+	 clk       : in std_logic;
+	 reset     : in std_logic;
+	 
+	 data_in    : in std_logic_vector(32 downto 1);
+	 data_in_val: in std_logic;
+	 s_state    : in std_logic_vector(3 downto 1);
+	 c_asm : in std_logic_vector(32 downto 1);
+	 
+	 data_out    :out std_logic_vector(32 downto 1);
+	 data_out_val:out std_logic;
+	 
+	 s_asm       :out std_logic_vector(8 downto 1)    --attached syn maker(asm)
+	 );	 
+end	asm_mark_p;
+
+architecture rtl of asm_mark_p is
+   --constant c_asm:std_logic_vector(32 downto 1):=x"352ef853";
+   constant c_asm_threshold_init :std_logic_vector(6 downto 1):= "000011";
+	constant c_asm_threshold_syn  :std_logic_vector(6 downto 1):= "000111";
+	
+	constant c_intl :std_logic_vector(3 downto 1):="000";
+	constant c_acqu :std_logic_vector(3 downto 1):="001";
+	constant c_sync :std_logic_vector(3 downto 1):="010";
+	constant c_warn :std_logic_vector(3 downto 1):="100";
+	 
+	signal signal_val:std_logic_vector(9 downto 1);
+	
+	signal  data_in_reg1 :std_logic_vector(32 downto 1);--输入数据寄存
+	signal  data_in_reg2 :std_logic_vector(32 downto 1);
+	signal  data_in_reg3 :std_logic_vector(32 downto 1);
+	signal  data_in_reg4 :std_logic_vector(32 downto 1);
+	signal  data_in_reg5 :std_logic_vector(32 downto 1);
+	signal  data_in_reg6 :std_logic_vector(32 downto 1);
+	signal  data_in_reg7 :std_logic_vector(32 downto 1);
+	signal  data_in_reg8 :std_logic_vector(32 downto 1);
+	signal  data_in_reg9 :std_logic_vector(32 downto 1);
+	
+	signal  s_sink_data_reg1 :std_logic_vector(8 downto 1);--输入数据符号寄存，便于寻找侦头
+	signal  s_sink_data_reg2 :std_logic_vector(8 downto 1);
+	signal  s_sink_data_reg3 :std_logic_vector(8 downto 1);
+	signal  s_sink_data_reg4 :std_logic_vector(8 downto 1);
+	signal  s_sink_data_reg5 :std_logic_vector(8 downto 1);
+	signal  s_sink_data_reg6 :std_logic_vector(8 downto 1);
+	signal  s_sink_data_reg7 :std_logic_vector(8 downto 1);
+	signal  s_sink_data_reg8 :std_logic_vector(8 downto 1);
+	signal  s_sink_data_reg9 :std_logic_vector(8 downto 1);
+	
+	signal  s_corr1 :std_logic_vector(32 downto 1);
+	signal  s_corr2 :std_logic_vector(32 downto 1);
+	signal  s_corr3 :std_logic_vector(32 downto 1);
+	signal  s_corr4 :std_logic_vector(32 downto 1);
+	signal  s_corr5 :std_logic_vector(32 downto 1);
+	signal  s_corr6 :std_logic_vector(32 downto 1);
+	signal  s_corr7 :std_logic_vector(32 downto 1);
+	signal  s_corr8 :std_logic_vector(32 downto 1);
+	
+	type s_corrsumstage1  is array (16 downto 1) of std_logic_vector(2 downto 1);
+   signal s_corrsum1_stage1 : s_corrsumstage1;
+	signal s_corrsum2_stage1 : s_corrsumstage1;
+	signal s_corrsum3_stage1 : s_corrsumstage1;
+	signal s_corrsum4_stage1 : s_corrsumstage1;
+	signal s_corrsum5_stage1 : s_corrsumstage1;
+	signal s_corrsum6_stage1 : s_corrsumstage1;
+	signal s_corrsum7_stage1 : s_corrsumstage1;
+	signal s_corrsum8_stage1 : s_corrsumstage1;
+	
+	type s_corrsumstage2  is array (4 downto 1) of std_logic_vector(4 downto 1);
+	signal s_corrsum1_stage2 : s_corrsumstage2;
+	signal s_corrsum2_stage2 : s_corrsumstage2;
+	signal s_corrsum3_stage2 : s_corrsumstage2;
+	signal s_corrsum4_stage2 : s_corrsumstage2;
+	signal s_corrsum5_stage2 : s_corrsumstage2;
+	signal s_corrsum6_stage2 : s_corrsumstage2;
+	signal s_corrsum7_stage2 : s_corrsumstage2;
+	signal s_corrsum8_stage2 : s_corrsumstage2;
+	
+	signal  s_corrsum1_stage3: std_logic_vector(6 downto 1);
+	signal  s_corrsum2_stage3: std_logic_vector(6 downto 1);
+	signal  s_corrsum3_stage3: std_logic_vector(6 downto 1);
+	signal  s_corrsum4_stage3: std_logic_vector(6 downto 1);
+	signal  s_corrsum5_stage3: std_logic_vector(6 downto 1);
+	signal  s_corrsum6_stage3: std_logic_vector(6 downto 1);
+	signal  s_corrsum7_stage3: std_logic_vector(6 downto 1);
+	signal  s_corrsum8_stage3: std_logic_vector(6 downto 1);
+	
+	signal  dataout8mark:std_logic_vector(8 downto 1);
+
+begin
+    
+	process(clk,reset)--
+	begin
+		if(reset='1')then
+		  
+		   data_in_reg1 <= x"00000000";
+			data_in_reg2 <= x"00000000";
+			data_in_reg3 <= x"00000000";
+			data_in_reg4 <= x"00000000";
+			data_in_reg5 <= x"00000000";
+			data_in_reg6 <= x"00000000";
+			data_in_reg7 <= x"00000000";
+			data_in_reg8 <= x"00000000";
+			data_in_reg9 <= x"00000000";
+	   elsif (clk'event and clk='1')then
+		   if (data_in_val='1') then
+			   data_in_reg1 <= data_in;
+				data_in_reg2 <= data_in_reg1;	
+				data_in_reg3 <= data_in_reg2;	
+				data_in_reg4 <= data_in_reg3;	
+				data_in_reg5 <= data_in_reg4;
+				data_in_reg6 <= data_in_reg5;
+				data_in_reg7 <= data_in_reg6;
+				data_in_reg8 <= data_in_reg7;
+				data_in_reg9 <= data_in_reg8;
+		   end if;
+		end if;
+	end process;
+	
+	data_out<=data_in_reg9;  --输出延迟后的数据
+	
+	dataout8mark<=not (data_in_reg9(32) & data_in_reg9(28) & data_in_reg9(24) & data_in_reg9(20)
+	                   & data_in_reg9(16) & data_in_reg9(12) & data_in_reg9(8) & data_in_reg9(4));   --only to wtach
+	
+	data_out_val<=signal_val(1);
+	
+	process(clk,reset)
+	begin
+		if(reset='1')then
+		   signal_val<='0' & x"00";
+		   s_sink_data_reg1 <= x"00";
+			s_sink_data_reg2 <= x"00";
+			s_sink_data_reg3 <= x"00";
+			s_sink_data_reg4 <= x"00";
+			s_sink_data_reg5 <= x"00";
+			s_sink_data_reg6 <= x"00";
+			s_sink_data_reg7 <= x"00";
+			s_sink_data_reg8 <= x"00";
+			s_sink_data_reg9 <= x"00";
+	   elsif (clk'event and clk='1')then
+		   signal_val <= signal_val(8 downto 1) & data_in_val;	--使能缓存输出
+		  if (data_in_val='1') then
+			   s_sink_data_reg1 <=not (data_in(32)&data_in(28)&data_in(24)&data_in(20)
+			                      &data_in(16)&data_in(12)&data_in(8)&data_in(4));
+				s_sink_data_reg2 <= s_sink_data_reg1;	
+				s_sink_data_reg3 <= s_sink_data_reg2;	
+				s_sink_data_reg4 <= s_sink_data_reg3;	
+				s_sink_data_reg5 <= s_sink_data_reg4;
+				s_sink_data_reg6 <= s_sink_data_reg5;
+				s_sink_data_reg7 <= s_sink_data_reg6;
+				s_sink_data_reg8 <= s_sink_data_reg7;
+				s_sink_data_reg9 <= s_sink_data_reg8;
+		   end if;
+		end if;
+	end process;
+	
+	--xor s_corr1~8 is 0 when syn in theory
+	 s_corr8 <= (s_sink_data_reg5(8 downto 1) & s_sink_data_reg4(8 downto 1) & s_sink_data_reg3(8 downto 1) & s_sink_data_reg2(8 downto 1)) xor c_asm;
+	 s_corr7 <= (s_sink_data_reg5(7 downto 1) & s_sink_data_reg4(8 downto 1) & s_sink_data_reg3(8 downto 1) & s_sink_data_reg2(8 downto 1) & s_sink_data_reg1(8)) xor c_asm;
+	 s_corr6 <= (s_sink_data_reg5(6 downto 1) & s_sink_data_reg4(8 downto 1) & s_sink_data_reg3(8 downto 1) & s_sink_data_reg2(8 downto 1) & s_sink_data_reg1(8 downto 7)) xor c_asm;
+	 s_corr5 <= (s_sink_data_reg5(5 downto 1) & s_sink_data_reg4(8 downto 1) & s_sink_data_reg3(8 downto 1) & s_sink_data_reg2(8 downto 1) & s_sink_data_reg1(8 downto 6)) xor c_asm;
+	 s_corr4 <= (s_sink_data_reg5(4 downto 1) & s_sink_data_reg4(8 downto 1) & s_sink_data_reg3(8 downto 1) & s_sink_data_reg2(8 downto 1) & s_sink_data_reg1(8 downto 5)) xor c_asm;
+	 s_corr3 <= (s_sink_data_reg5(3 downto 1) & s_sink_data_reg4(8 downto 1) & s_sink_data_reg3(8 downto 1) & s_sink_data_reg2(8 downto 1) & s_sink_data_reg1(8 downto 4)) xor c_asm;
+	 s_corr2 <= (s_sink_data_reg5(2 downto 1) & s_sink_data_reg4(8 downto 1) & s_sink_data_reg3(8 downto 1) & s_sink_data_reg2(8 downto 1) & s_sink_data_reg1(8 downto 3)) xor c_asm;
+	 s_corr1 <= (s_sink_data_reg5(1) & s_sink_data_reg4(8 downto 1) & s_sink_data_reg3(8 downto 1) & s_sink_data_reg2(8 downto 1) & s_sink_data_reg1(8 downto 2)) xor c_asm;
+
+
+   --计算相关值的流水线第一级
+	process(clk,reset)
+	  variable i:integer range 1 to 17;
+	  begin
+		if(reset='1') then 
+		   i:=1;
+		  while (i<=16) loop
+				s_corrsum1_stage1(i) <= "01";
+				s_corrsum2_stage1(i) <= "01";
+				s_corrsum3_stage1(i) <= "01";
+				s_corrsum4_stage1(i) <= "01";
+				s_corrsum5_stage1(i) <= "01";
+				s_corrsum6_stage1(i) <= "01";
+				s_corrsum7_stage1(i) <= "01";
+				s_corrsum8_stage1(i) <= "01";
+				i:=i+1;
+		  end loop;
+		elsif (clk'event and clk='1') then
+		   if(data_in_val='1')then 
+			s_corrsum1_stage1(1)  <= '0'& s_corr1(1)  + s_corr1(2);
+			s_corrsum1_stage1(2)  <= '0'& s_corr1(3)  + s_corr1(4);
+			s_corrsum1_stage1(3)  <= '0'& s_corr1(5)  + s_corr1(6);
+			s_corrsum1_stage1(4)  <= '0'& s_corr1(7)  + s_corr1(8);
+			s_corrsum1_stage1(5)  <= '0'& s_corr1(9)  + s_corr1(10);
+			s_corrsum1_stage1(6)  <= '0'& s_corr1(11) + s_corr1(12);
+			s_corrsum1_stage1(7)  <= '0'& s_corr1(13) + s_corr1(14);
+			s_corrsum1_stage1(8)  <= '0'& s_corr1(15) + s_corr1(16);
+			s_corrsum1_stage1(9)  <= '0'& s_corr1(17) + s_corr1(18);
+			s_corrsum1_stage1(10) <= '0'& s_corr1(19) + s_corr1(20);
+			s_corrsum1_stage1(11) <= '0'& s_corr1(21) + s_corr1(22);
+			s_corrsum1_stage1(12) <= '0'& s_corr1(23) + s_corr1(24);
+			s_corrsum1_stage1(13) <= '0'& s_corr1(25) + s_corr1(26);
+			s_corrsum1_stage1(14) <= '0'& s_corr1(27) + s_corr1(28);
+			s_corrsum1_stage1(15) <= '0'& s_corr1(29) + s_corr1(30);
+			s_corrsum1_stage1(16) <= '0'& s_corr1(31) + s_corr1(32);
+		
+			s_corrsum2_stage1(1)  <= '0'& s_corr2(1)  + s_corr2(2);
+			s_corrsum2_stage1(2)  <= '0'& s_corr2(3)  + s_corr2(4);
+			s_corrsum2_stage1(3)  <= '0'& s_corr2(5)  + s_corr2(6);
+			s_corrsum2_stage1(4)  <= '0'& s_corr2(7)  + s_corr2(8);
+			s_corrsum2_stage1(5)  <= '0'& s_corr2(9)  + s_corr2(10);
+			s_corrsum2_stage1(6)  <= '0'& s_corr2(11) + s_corr2(12);
+			s_corrsum2_stage1(7)  <= '0'& s_corr2(13) + s_corr2(14);
+			s_corrsum2_stage1(8)  <= '0'& s_corr2(15) + s_corr2(16);
+			s_corrsum2_stage1(9)  <= '0'& s_corr2(17) + s_corr2(18);
+			s_corrsum2_stage1(10) <= '0'& s_corr2(19) + s_corr2(20);
+			s_corrsum2_stage1(11) <= '0'& s_corr2(21) + s_corr2(22);
+			s_corrsum2_stage1(12) <= '0'& s_corr2(23) + s_corr2(24);
+			s_corrsum2_stage1(13) <= '0'& s_corr2(25) + s_corr2(26);
+			s_corrsum2_stage1(14) <= '0'& s_corr2(27) + s_corr2(28);
+			s_corrsum2_stage1(15) <= '0'& s_corr2(29) + s_corr2(30);
+			s_corrsum2_stage1(16) <= '0'& s_corr2(31) + s_corr2(32);
+			
+			s_corrsum3_stage1(1)  <= '0'& s_corr3(1)  + s_corr3(2);
+			s_corrsum3_stage1(2)  <= '0'& s_corr3(3)  + s_corr3(4);
+			s_corrsum3_stage1(3)  <= '0'& s_corr3(5)  + s_corr3(6);
+			s_corrsum3_stage1(4)  <= '0'& s_corr3(7)  + s_corr3(8);
+			s_corrsum3_stage1(5)  <= '0'& s_corr3(9)  + s_corr3(10);
+			s_corrsum3_stage1(6)  <= '0'& s_corr3(11) + s_corr3(12);
+			s_corrsum3_stage1(7)  <= '0'& s_corr3(13) + s_corr3(14);
+			s_corrsum3_stage1(8)  <= '0'& s_corr3(15) + s_corr3(16);
+			s_corrsum3_stage1(9)  <= '0'& s_corr3(17) + s_corr3(18);
+			s_corrsum3_stage1(10) <= '0'& s_corr3(19) + s_corr3(20);
+			s_corrsum3_stage1(11) <= '0'& s_corr3(21) + s_corr3(22);
+			s_corrsum3_stage1(12) <= '0'& s_corr3(23) + s_corr3(24);
+			s_corrsum3_stage1(13) <= '0'& s_corr3(25) + s_corr3(26);
+			s_corrsum3_stage1(14) <= '0'& s_corr3(27) + s_corr3(28);
+			s_corrsum3_stage1(15) <= '0'& s_corr3(29) + s_corr3(30);
+			s_corrsum3_stage1(16) <= '0'& s_corr3(31) + s_corr3(32);
+			
+			s_corrsum4_stage1(1)  <= '0'& s_corr4(1)  + s_corr4(2);
+			s_corrsum4_stage1(2)  <= '0'& s_corr4(3)  + s_corr4(4);
+			s_corrsum4_stage1(3)  <= '0'& s_corr4(5)  + s_corr4(6);
+			s_corrsum4_stage1(4)  <= '0'& s_corr4(7)  + s_corr4(8);
+			s_corrsum4_stage1(5)  <= '0'& s_corr4(9)  + s_corr4(10);
+			s_corrsum4_stage1(6)  <= '0'& s_corr4(11) + s_corr4(12);
+			s_corrsum4_stage1(7)  <= '0'& s_corr4(13) + s_corr4(14);
+			s_corrsum4_stage1(8)  <= '0'& s_corr4(15) + s_corr4(16);
+			s_corrsum4_stage1(9)  <= '0'& s_corr4(17) + s_corr4(18);
+			s_corrsum4_stage1(10) <= '0'& s_corr4(19) + s_corr4(20);
+			s_corrsum4_stage1(11) <= '0'& s_corr4(21) + s_corr4(22);
+			s_corrsum4_stage1(12) <= '0'& s_corr4(23) + s_corr4(24);
+			s_corrsum4_stage1(13) <= '0'& s_corr4(25) + s_corr4(26);
+			s_corrsum4_stage1(14) <= '0'& s_corr4(27) + s_corr4(28);
+			s_corrsum4_stage1(15) <= '0'& s_corr4(29) + s_corr4(30);
+			s_corrsum4_stage1(16) <= '0'& s_corr4(31) + s_corr4(32);
+			
+			s_corrsum5_stage1(1)  <= '0'& s_corr5(1)  + s_corr5(2);
+			s_corrsum5_stage1(2)  <= '0'& s_corr5(3)  + s_corr5(4);
+			s_corrsum5_stage1(3)  <= '0'& s_corr5(5)  + s_corr5(6);
+			s_corrsum5_stage1(4)  <= '0'& s_corr5(7)  + s_corr5(8);
+			s_corrsum5_stage1(5)  <= '0'& s_corr5(9)  + s_corr5(10);
+			s_corrsum5_stage1(6)  <= '0'& s_corr5(11) + s_corr5(12);
+			s_corrsum5_stage1(7)  <= '0'& s_corr5(13) + s_corr5(14);
+			s_corrsum5_stage1(8)  <= '0'& s_corr5(15) + s_corr5(16);
+			s_corrsum5_stage1(9)  <= '0'& s_corr5(17) + s_corr5(18);
+			s_corrsum5_stage1(10) <= '0'& s_corr5(19) + s_corr5(20);
+			s_corrsum5_stage1(11) <= '0'& s_corr5(21) + s_corr5(22);
+			s_corrsum5_stage1(12) <= '0'& s_corr5(23) + s_corr5(24);
+			s_corrsum5_stage1(13) <= '0'& s_corr5(25) + s_corr5(26);
+			s_corrsum5_stage1(14) <= '0'& s_corr5(27) + s_corr5(28);
+			s_corrsum5_stage1(15) <= '0'& s_corr5(29) + s_corr5(30);
+			s_corrsum5_stage1(16) <= '0'& s_corr5(31) + s_corr5(32);
+			
+			s_corrsum6_stage1(1)  <= '0'& s_corr6(1)  + s_corr6(2);
+			s_corrsum6_stage1(2)  <= '0'& s_corr6(3)  + s_corr6(4);
+			s_corrsum6_stage1(3)  <= '0'& s_corr6(5)  + s_corr6(6);
+			s_corrsum6_stage1(4)  <= '0'& s_corr6(7)  + s_corr6(8);
+			s_corrsum6_stage1(5)  <= '0'& s_corr6(9)  + s_corr6(10);
+			s_corrsum6_stage1(6)  <= '0'& s_corr6(11) + s_corr6(12);
+			s_corrsum6_stage1(7)  <= '0'& s_corr6(13) + s_corr6(14);
+			s_corrsum6_stage1(8)  <= '0'& s_corr6(15) + s_corr6(16);
+			s_corrsum6_stage1(9)  <= '0'& s_corr6(17) + s_corr6(18);
+			s_corrsum6_stage1(10) <= '0'& s_corr6(19) + s_corr6(20);
+			s_corrsum6_stage1(11) <= '0'& s_corr6(21) + s_corr6(22);
+			s_corrsum6_stage1(12) <= '0'& s_corr6(23) + s_corr6(24);
+			s_corrsum6_stage1(13) <= '0'& s_corr6(25) + s_corr6(26);
+			s_corrsum6_stage1(14) <= '0'& s_corr6(27) + s_corr6(28);
+			s_corrsum6_stage1(15) <= '0'& s_corr6(29) + s_corr6(30);
+			s_corrsum6_stage1(16) <= '0'& s_corr6(31) + s_corr6(32);
+			
+			s_corrsum7_stage1(1)  <= '0'& s_corr7(1)  + s_corr7(2);
+			s_corrsum7_stage1(2)  <= '0'& s_corr7(3)  + s_corr7(4);
+			s_corrsum7_stage1(3)  <= '0'& s_corr7(5)  + s_corr7(6);
+			s_corrsum7_stage1(4)  <= '0'& s_corr7(7)  + s_corr7(8);
+			s_corrsum7_stage1(5)  <= '0'& s_corr7(9)  + s_corr7(10);
+			s_corrsum7_stage1(6)  <= '0'& s_corr7(11) + s_corr7(12);
+			s_corrsum7_stage1(7)  <= '0'& s_corr7(13) + s_corr7(14);
+			s_corrsum7_stage1(8)  <= '0'& s_corr7(15) + s_corr7(16);
+			s_corrsum7_stage1(9)  <= '0'& s_corr7(17) + s_corr7(18);
+			s_corrsum7_stage1(10) <= '0'& s_corr7(19) + s_corr7(20);
+			s_corrsum7_stage1(11) <= '0'& s_corr7(21) + s_corr7(22);
+			s_corrsum7_stage1(12) <= '0'& s_corr7(23) + s_corr7(24);
+			s_corrsum7_stage1(13) <= '0'& s_corr7(25) + s_corr7(26);
+			s_corrsum7_stage1(14) <= '0'& s_corr7(27) + s_corr7(28);
+			s_corrsum7_stage1(15) <= '0'& s_corr7(29) + s_corr7(30);
+			s_corrsum7_stage1(16) <= '0'& s_corr7(31) + s_corr7(32);
+			
+			s_corrsum8_stage1(1)  <= '0'& s_corr8(1)  + s_corr8(2);
+			s_corrsum8_stage1(2)  <= '0'& s_corr8(3)  + s_corr8(4);
+			s_corrsum8_stage1(3)  <= '0'& s_corr8(5)  + s_corr8(6);
+			s_corrsum8_stage1(4)  <= '0'& s_corr8(7)  + s_corr8(8);
+			s_corrsum8_stage1(5)  <= '0'& s_corr8(9)  + s_corr8(10);
+			s_corrsum8_stage1(6)  <= '0'& s_corr8(11) + s_corr8(12);
+			s_corrsum8_stage1(7)  <= '0'& s_corr8(13) + s_corr8(14);
+			s_corrsum8_stage1(8)  <= '0'& s_corr8(15) + s_corr8(16);
+			s_corrsum8_stage1(9)  <= '0'& s_corr8(17) + s_corr8(18);
+			s_corrsum8_stage1(10) <= '0'& s_corr8(19) + s_corr8(20);
+			s_corrsum8_stage1(11) <= '0'& s_corr8(21) + s_corr8(22);
+			s_corrsum8_stage1(12) <= '0'& s_corr8(23) + s_corr8(24);
+			s_corrsum8_stage1(13) <= '0'& s_corr8(25) + s_corr8(26);
+			s_corrsum8_stage1(14) <= '0'& s_corr8(27) + s_corr8(28);
+			s_corrsum8_stage1(15) <= '0'& s_corr8(29) + s_corr8(30);
+			s_corrsum8_stage1(16) <= '0'& s_corr8(31) + s_corr8(32);			
+		 end if;
+	end if;
+end process;
+
+	--计算相关值的流水线第二级
+	process(clk,reset)
+	  variable i:integer range 1 to 5;
+	  begin
+		if(reset='1') then 
+		  i:=1;
+		  while (i<=4) loop
+				s_corrsum1_stage2(i) <= "0011";
+				s_corrsum2_stage2(i) <= "0011";
+				s_corrsum3_stage2(i) <= "0011";
+				s_corrsum4_stage2(i) <= "0011";
+				s_corrsum5_stage2(i) <= "0011";
+				s_corrsum6_stage2(i) <= "0011";
+				s_corrsum7_stage2(i) <= "0011";
+				s_corrsum8_stage2(i) <= "0011";
+				i:=i+1;
+		  end loop;
+		 elsif (clk'event and clk='1') then
+		   if (data_in_val='1') then 
+			s_corrsum1_stage2(1) <='0' & ('0' & s_corrsum1_stage1(1)  + s_corrsum1_stage1(2))  + ('0' & s_corrsum1_stage1(3)  + s_corrsum1_stage1(4));
+			s_corrsum1_stage2(2) <='0' & ('0' & s_corrsum1_stage1(5)  + s_corrsum1_stage1(6))  + ('0' & s_corrsum1_stage1(7)  + s_corrsum1_stage1(8));
+			s_corrsum1_stage2(3) <='0' & ('0' & s_corrsum1_stage1(9)  + s_corrsum1_stage1(10)) + ('0' & s_corrsum1_stage1(11) + s_corrsum1_stage1(12));
+			s_corrsum1_stage2(4) <='0' & ('0' & s_corrsum1_stage1(13) + s_corrsum1_stage1(14)) + ('0' & s_corrsum1_stage1(15) + s_corrsum1_stage1(16));
+				
+			s_corrsum2_stage2(1) <='0' & ('0' & s_corrsum2_stage1(1)  + s_corrsum2_stage1(2))  + ('0' & s_corrsum2_stage1(3)  + s_corrsum2_stage1(4));
+			s_corrsum2_stage2(2) <='0' & ('0' & s_corrsum2_stage1(5)  + s_corrsum2_stage1(6))  + ('0' & s_corrsum2_stage1(7)  + s_corrsum2_stage1(8));
+			s_corrsum2_stage2(3) <='0' & ('0' & s_corrsum2_stage1(9)  + s_corrsum2_stage1(10)) + ('0' & s_corrsum2_stage1(11) + s_corrsum2_stage1(12));
+			s_corrsum2_stage2(4) <='0' & ('0' & s_corrsum2_stage1(13) + s_corrsum2_stage1(14)) + ('0' & s_corrsum2_stage1(15) + s_corrsum2_stage1(16));
+				
+			s_corrsum3_stage2(1) <='0' & ('0' & s_corrsum3_stage1(1)  + s_corrsum3_stage1(2))  + ('0' & s_corrsum3_stage1(3)  + s_corrsum3_stage1(4));
+			s_corrsum3_stage2(2) <='0' & ('0' & s_corrsum3_stage1(5)  + s_corrsum3_stage1(6))  + ('0' & s_corrsum3_stage1(7)  + s_corrsum3_stage1(8));
+			s_corrsum3_stage2(3) <='0' & ('0' & s_corrsum3_stage1(9)  + s_corrsum3_stage1(10)) + ('0' & s_corrsum3_stage1(11) + s_corrsum3_stage1(12));
+			s_corrsum3_stage2(4) <='0' & ('0' & s_corrsum3_stage1(13) + s_corrsum3_stage1(14)) + ('0' & s_corrsum3_stage1(15) + s_corrsum3_stage1(16));
+				
+			s_corrsum4_stage2(1) <='0' & ('0' & s_corrsum4_stage1(1)  + s_corrsum4_stage1(2))  + ('0' & s_corrsum4_stage1(3)  + s_corrsum4_stage1(4));
+			s_corrsum4_stage2(2) <='0' & ('0' & s_corrsum4_stage1(5)  + s_corrsum4_stage1(6))  + ('0' & s_corrsum4_stage1(7)  + s_corrsum4_stage1(8));
+			s_corrsum4_stage2(3) <='0' & ('0' & s_corrsum4_stage1(9)  + s_corrsum4_stage1(10)) + ('0' & s_corrsum4_stage1(11) + s_corrsum4_stage1(12));
+			s_corrsum4_stage2(4) <='0' & ('0' & s_corrsum4_stage1(13) + s_corrsum4_stage1(14)) + ('0' & s_corrsum4_stage1(15) + s_corrsum4_stage1(16));
+			
+			s_corrsum5_stage2(1) <='0' & ('0' & s_corrsum5_stage1(1)  + s_corrsum5_stage1(2))  + ('0' & s_corrsum5_stage1(3)  + s_corrsum5_stage1(4));
+			s_corrsum5_stage2(2) <='0' & ('0' & s_corrsum5_stage1(5)  + s_corrsum5_stage1(6))  + ('0' & s_corrsum5_stage1(7)  + s_corrsum5_stage1(8));
+			s_corrsum5_stage2(3) <='0' & ('0' & s_corrsum5_stage1(9)  + s_corrsum5_stage1(10)) + ('0' & s_corrsum5_stage1(11) + s_corrsum5_stage1(12));
+			s_corrsum5_stage2(4) <='0' & ('0' & s_corrsum5_stage1(13) + s_corrsum5_stage1(14)) + ('0' & s_corrsum5_stage1(15) + s_corrsum5_stage1(16));
+			
+			s_corrsum6_stage2(1) <='0' & ('0' & s_corrsum6_stage1(1)  + s_corrsum6_stage1(2))  + ('0' & s_corrsum6_stage1(3)  + s_corrsum6_stage1(4));
+			s_corrsum6_stage2(2) <='0' & ('0' & s_corrsum6_stage1(5)  + s_corrsum6_stage1(6))  + ('0' & s_corrsum6_stage1(7)  + s_corrsum6_stage1(8));
+			s_corrsum6_stage2(3) <='0' & ('0' & s_corrsum6_stage1(9)  + s_corrsum6_stage1(10)) + ('0' & s_corrsum6_stage1(11) + s_corrsum6_stage1(12));
+			s_corrsum6_stage2(4) <='0' & ('0' & s_corrsum6_stage1(13) + s_corrsum6_stage1(14)) + ('0' & s_corrsum6_stage1(15) + s_corrsum6_stage1(16));
+			
+			s_corrsum7_stage2(1) <='0' & ('0' & s_corrsum7_stage1(1)  + s_corrsum7_stage1(2))  + ('0' & s_corrsum7_stage1(3)  + s_corrsum7_stage1(4));
+			s_corrsum7_stage2(2) <='0' & ('0' & s_corrsum7_stage1(5)  + s_corrsum7_stage1(6))  + ('0' & s_corrsum7_stage1(7)  + s_corrsum7_stage1(8));
+			s_corrsum7_stage2(3) <='0' & ('0' & s_corrsum7_stage1(9)  + s_corrsum7_stage1(10)) + ('0' & s_corrsum7_stage1(11) + s_corrsum7_stage1(12));
+			s_corrsum7_stage2(4) <='0' & ('0' & s_corrsum7_stage1(13) + s_corrsum7_stage1(14)) + ('0' & s_corrsum7_stage1(15) + s_corrsum7_stage1(16));
+			
+			s_corrsum8_stage2(1) <='0' & ('0' & s_corrsum8_stage1(1)  + s_corrsum8_stage1(2))  + ('0' & s_corrsum8_stage1(3)  + s_corrsum8_stage1(4));
+			s_corrsum8_stage2(2) <='0' & ('0' & s_corrsum8_stage1(5)  + s_corrsum8_stage1(6))  + ('0' & s_corrsum8_stage1(7)  + s_corrsum8_stage1(8));
+			s_corrsum8_stage2(3) <='0' & ('0' & s_corrsum8_stage1(9)  + s_corrsum8_stage1(10)) + ('0' & s_corrsum8_stage1(11) + s_corrsum8_stage1(12));
+			s_corrsum8_stage2(4) <='0' & ('0' & s_corrsum8_stage1(13) + s_corrsum8_stage1(14)) + ('0' & s_corrsum8_stage1(15) + s_corrsum8_stage1(16));
+		
+			end if;
+	  end if;
+	end process;
+	
+	--计算相关值的流水线第3级
+	process(clk,reset)
+	  begin
+	  if(reset='1') then 
+	      s_corrsum1_stage3 <= "111111";
+			s_corrsum2_stage3 <= "111111";
+			s_corrsum3_stage3 <= "111111";
+			s_corrsum4_stage3 <= "111111";
+			s_corrsum5_stage3 <= "111111";
+			s_corrsum6_stage3 <= "111111";
+			s_corrsum7_stage3 <= "111111";
+			s_corrsum8_stage3 <= "111111";			
+	    elsif(clk'event and clk='1') then
+		  if (data_in_val='1') then
+		   s_corrsum1_stage3 <= '0'&('0'& s_corrsum1_stage2(1) + s_corrsum1_stage2(2)) + ('0'& s_corrsum1_stage2(3) + s_corrsum1_stage2(4));
+			s_corrsum2_stage3 <= '0'&('0'& s_corrsum2_stage2(1) + s_corrsum2_stage2(2)) + ('0'& s_corrsum2_stage2(3) + s_corrsum2_stage2(4));
+			s_corrsum3_stage3 <= '0'&('0'& s_corrsum3_stage2(1) + s_corrsum3_stage2(2)) + ('0'& s_corrsum3_stage2(3) + s_corrsum3_stage2(4));
+			s_corrsum4_stage3 <= '0'&('0'& s_corrsum4_stage2(1) + s_corrsum4_stage2(2)) + ('0'& s_corrsum4_stage2(3) + s_corrsum4_stage2(4));
+			s_corrsum5_stage3 <= '0'&('0'& s_corrsum5_stage2(1) + s_corrsum5_stage2(2)) + ('0'& s_corrsum5_stage2(3) + s_corrsum5_stage2(4));
+			s_corrsum6_stage3 <= '0'&('0'& s_corrsum6_stage2(1) + s_corrsum6_stage2(2)) + ('0'& s_corrsum6_stage2(3) + s_corrsum6_stage2(4));
+			s_corrsum7_stage3 <= '0'&('0'& s_corrsum7_stage2(1) + s_corrsum7_stage2(2)) + ('0'& s_corrsum7_stage2(3) + s_corrsum7_stage2(4));
+			s_corrsum8_stage3 <= '0'&('0'& s_corrsum8_stage2(1) + s_corrsum8_stage2(2)) + ('0'& s_corrsum8_stage2(3) + s_corrsum8_stage2(4));
+		  end if;
+	   end if;
+	end process;
+	
+	process(clk,reset)
+	 begin
+	  if(reset='1') then
+	     s_asm <= x"00";
+	   elsif(clk'event and clk='1') then
+	    if (data_in_val='1') then
+	      if (s_state=c_intl or s_state=c_acqu) then
+		    if (s_corrsum1_stage3<c_asm_threshold_init)then
+              s_asm(1) <='1';
+            else
+	           s_asm(1)<='0';
+	       end if;
+           	
+          if (s_corrsum2_stage3<c_asm_threshold_init)then
+              s_asm(2) <='1';
+            else
+	           s_asm(2)<='0';
+	       end if;
+           	
+          if (s_corrsum3_stage3<c_asm_threshold_init)then
+              s_asm(3) <='1';
+            else
+	           s_asm(3)<='0';
+	       end if;
+           	
+          if (s_corrsum4_stage3<c_asm_threshold_init)then
+              s_asm(4) <='1';
+            else
+	           s_asm(4)<='0';
+	       end if;
+           	
+          if (s_corrsum5_stage3<c_asm_threshold_init)then
+              s_asm(5) <='1';
+            else
+	           s_asm(5)<='0';
+	       end if;
+           	
+          if (s_corrsum6_stage3<c_asm_threshold_init)then
+              s_asm(6) <='1';
+            else
+	           s_asm(6)<='0';
+	       end if;
+           	
+          if (s_corrsum7_stage3<c_asm_threshold_init)then
+              s_asm(7) <='1';
+            else
+	           s_asm(7)<='0';
+	       end if;
+	       
+	       if (s_corrsum8_stage3<c_asm_threshold_init)then
+              s_asm(8) <='1';
+            else
+	           s_asm(8)<='0';
+	       end if;
+	       
+	    elsif (s_state=c_sync or s_state=c_warn) then
+	    		 if (s_corrsum1_stage3<c_asm_threshold_syn)then
+              s_asm(1) <='1';
+            else
+	           s_asm(1)<='0';
+	       end if;
+           	
+          if (s_corrsum2_stage3<c_asm_threshold_syn)then
+              s_asm(2) <='1';
+            else
+	           s_asm(2)<='0';
+	       end if;
+           	
+          if (s_corrsum3_stage3<c_asm_threshold_syn)then
+              s_asm(3) <='1';
+            else
+	           s_asm(3)<='0';
+	       end if;
+           	
+          if (s_corrsum4_stage3<c_asm_threshold_syn)then
+              s_asm(4) <='1';
+            else
+	           s_asm(4)<='0';
+	       end if;
+           	
+          if (s_corrsum5_stage3<c_asm_threshold_syn)then
+              s_asm(5) <='1';
+            else
+	           s_asm(5)<='0';
+	       end if;
+           	
+          if (s_corrsum6_stage3<c_asm_threshold_syn)then
+              s_asm(6) <='1';
+            else
+	           s_asm(6)<='0';
+	       end if;
+           	
+          if (s_corrsum7_stage3<c_asm_threshold_syn)then
+              s_asm(7) <='1';
+            else
+	           s_asm(7)<='0';
+	       end if;
+	       
+	       if (s_corrsum8_stage3<c_asm_threshold_syn)then
+              s_asm(8) <='1';
+            else
+	           s_asm(8)<='0';
+	       end if;	
+	       
+		end if;
+	 end if;
+	end if; 
+  end process;
+  
+end rtl;

@@ -1,0 +1,101 @@
+    library ieee;
+    use ieee.std_logic_1164.all;
+    use ieee.numeric_std.all;
+    use ieee.std_logic_unsigned.all;
+    
+	entity siggen is  -- define entity
+	port
+	(   i_clk        :  in std_logic;
+	    i_reset      :  in std_logic;
+	    
+	    o_sop        :  out std_logic;
+		 o_eop        :  out std_logic;       
+		 o_val        :  out std_logic;
+	    o_data       :  out std_logic_vector(8 downto 1)
+	 );
+	end siggen;
+	
+	architecture rtl of siggen is
+    
+   signal s_counter   :   std_logic_vector(16 downto 1);
+	signal s_shift     :   std_logic_vector(23 downto 1);
+	
+	constant p_infosym :  integer := 991;
+	constant p_delay   :  integer := 32;
+	constant p_framesize : integer := p_infosym + p_delay;
+	
+	signal o_sop_read  :   std_logic;   
+	signal o_eop_read  :   std_logic;
+	signal o_val_read  :   std_logic;
+	
+	
+	begin
+		o_sop  <= o_sop_read;
+		o_eop  <= o_eop_read;
+		o_val  <= o_val_read;
+		o_data <= s_shift(23 downto 16);
+		
+		
+		process ( i_clk,i_reset )
+		begin
+			if ( i_reset = '1' ) then
+				s_counter <= (others=>'0');
+			elsif rising_edge(i_clk) then
+				if ( s_counter = p_framesize ) then
+					s_counter <= (others=>'0');
+				else
+					s_counter <= s_counter + x"0001";
+				end if;
+			end if;
+		end process;
+		
+		process ( i_clk,i_reset )
+		begin
+			if ( i_reset = '1' ) then
+				o_sop_read <= '0';
+			elsif rising_edge(i_clk) then
+				if ( s_counter = 100 ) then
+					o_sop_read <= '1';
+				else
+					o_sop_read <= '0';
+				end if;
+			end if;
+		end	process;
+		
+		process ( i_clk,i_reset )
+		begin
+			if ( i_reset = '1' ) then
+				o_eop_read <= '0';
+			elsif rising_edge(i_clk) then
+				if ( s_counter = p_infosym ) then
+					o_eop_read <= '1';
+				else
+					o_eop_read <= '0';
+				end if;
+			end if;
+		end	process;
+		
+		process ( i_clk , i_reset )
+		variable  begin_counter  :   integer;
+		begin
+			if ( i_reset = '1' ) then
+				o_val_read <= '0';	
+				s_shift <= (others=>'1');
+				begin_counter := 0;
+			elsif rising_edge(i_clk) then
+				if ( s_counter > p_infosym or s_counter < 100 ) then
+					o_val_read <= '0';
+				else
+					o_val_read <= '1';
+				end if;
+				
+				if (o_val_read = '1' ) then
+					s_shift(23 downto 9) <= s_shift(15 downto 1);
+					s_shift(8 downto 1)  <= s_shift(23 downto 16) xor s_shift(18 downto 11);
+				else
+					s_shift <= s_shift;
+				end if;
+			end if;
+		end process;
+	end rtl;
+					

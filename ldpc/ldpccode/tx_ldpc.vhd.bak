@@ -1,0 +1,142 @@
+    library ieee;
+    use ieee.std_logic_1164.all;
+    use ieee.numeric_std.all;
+    use ieee.std_logic_unsigned.all;
+    
+    entity tx_ldpc is  -- define entity
+	port
+	(   clk          :  in std_logic;
+	    reset        :  in std_logic;
+	    i_data		 :  in std_logic;
+	    d_src_is_GE  :  in std_logic;
+	
+	    o_val        : out std_logic;
+	    o_data       : out std_logic_vector(8 downto 1);
+		o_sop        : out std_logic;
+		o_eop        : out std_logic;
+
+		pre_fifo_rden	: out std_logic		       
+		
+	 );
+	end tx_ldpc;
+	
+	architecture rtl of tx_ldpc is
+    
+    signal t_sop,t_eop,t_val :  std_logic;
+    signal t_data            :  std_logic_vector(7 downto 0);
+    signal debugcounter      :  std_logic_vector(15 downto 0);
+    
+    signal temp_o_val  :   std_logic;
+    signal temp_o_sop  :   std_logic;
+    signal temp_o_eop  :   std_logic;
+    signal t2_sop,t2_eop,t2_val :  std_logic;
+    signal t2_data            :  std_logic_vector(7 downto 0);
+    
+    component siggen  is 
+		port
+		(               
+			i_clk   :   in std_logic;
+			i_reset :   in std_logic;
+	
+			o_sop   :  out std_logic;
+			o_eop   :  out std_logic;
+			o_val   :  out std_logic;
+		   o_data  :  out std_logic_vector(8 downto 1)
+		);
+		end component;
+		
+	component ldpc_enc is 
+		port
+		(               
+			reset        :   in std_logic;
+			clk          :   in std_logic;
+	
+			ldpc_in      :   in std_logic_vector(7 downto 0);
+			i_sink_val   :   in std_logic;
+			i_sink_sop   :   in std_logic;
+		    i_sink_eop   :   in std_logic;
+	
+			ldpc_out     :   out std_logic_vector(7 downto 0);
+			o_src_val    :   out std_logic;
+			o_src_sop    :   out std_logic;
+			o_src_eop    :   out std_logic
+		);
+		end component;
+    
+    begin
+		o_val <= temp_o_val;
+		o_sop <= temp_o_sop;
+		o_eop <= temp_o_eop;
+		
+		process ( clk , reset )
+		begin
+			if ( reset = '1' ) then
+				debugcounter <= (others=>'0');
+			elsif rising_edge(clk) then
+				if ( temp_o_eop = '1' ) then
+					debugcounter <= (others=>'0');
+				elsif ( temp_o_sop = '1' ) then
+					debugcounter <= x"0001";
+				elsif ( temp_o_val = '1' ) then
+					debugcounter <= debugcounter + x"0001";
+				end if;
+			end if;
+		end process;
+		
+		siggen_inst : siggen 
+		port map
+        (
+			i_clk  =>  clk,
+			i_reset=>  reset,
+	
+			o_sop  =>  t_sop,
+			o_eop  =>  t_eop,
+			o_val  =>  t_val,
+			o_data =>  t_data
+		);
+
+        pre_fifo_rden <= t_data;
+
+        sig_dly : process( clk, aReset )
+        begin
+          if( aReset = '1' ) then
+            t2_data <= (others => '0');
+            t2_val <= '0';
+            t2_sop <= '0';
+            t2_eop <= '0';
+          elsif( rising_edge(clk) ) then
+          	t2_data <= t_data;
+          	t2_val <= t_val;
+          	t2_sop <= t_sop;
+          	t2_eop <= t_eop;
+          	
+          end if ;
+        end process ; -- sig_dly
+
+        process(t_data, i_data)
+        begin
+        	if d_src_is_GE = '1' then
+        		t2_data <= i_data;
+        	else
+        		t2_data <= t_data;
+        	end if;
+        end process;
+
+		ldpc_enc_inst : ldpc_enc 
+		port map
+		(
+			reset       =>  reset,
+			clk         =>  clk,
+	
+			ldpc_in     =>  t2_data,
+			i_sink_val  =>  t2_val,
+			i_sink_sop  =>  t2_sop,
+			i_sink_eop  =>  t2_eop,
+
+			ldpc_out   =>  o_data,
+			o_src_val  =>  temp_o_val,
+			o_src_sop  =>  temp_o_sop,
+			o_src_eop  =>  temp_o_eop
+		);
+	end rtl;  			
+				

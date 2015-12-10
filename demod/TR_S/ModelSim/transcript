@@ -1,0 +1,218 @@
+# Reading C:/altera/11.0/modelsim_ae/tcl/vsim/pref.tcl 
+# OpenFile E:/work/2011/10/Demod_Para_v0.1/source/TR_S/ModelSim/sim_TR_S.mpf 
+# Loading project sim_TR_S
+# Compile of timingrecovery_v2_tb.vhd was successful with warnings.
+# Compile of CubicInterpolator.vhd was successful.
+# Compile of GardnerTED_v2.vhd was successful.
+# Compile of InterpCtrl_v2.vhd was successful.
+# Compile of InterpType_delay.vhd was successful.
+# Compile of LoopFilter_v2.vhd was successful.
+# Compile of TimingRecovery_v2.vhd was successful.
+# 7 compiles, 0 failed with no errors. 
+vsim work.timingrecovery_v2_tb
+# vsim work.timingrecovery_v2_tb 
+# //  ModelSim ALTERA 6.6d Nov  2 2010 
+# //
+# //  Copyright 1991-2010 Mentor Graphics Corporation
+# //              All Rights Reserved.
+# //
+# //  THIS WORK CONTAINS TRADE SECRET AND 
+# //  PROPRIETARY INFORMATION WHICH IS THE PROPERTY
+# //  OF MENTOR GRAPHICS CORPORATION OR ITS LICENSORS
+# //  AND IS SUBJECT TO LICENSE TERMS.
+# //
+# Loading std.standard
+# Loading ieee.std_logic_1164(body)
+# Loading ieee.numeric_std(body)
+# Loading std.textio(body)
+# Loading ieee.std_logic_textio(body)
+# Loading work.timingrecovery_v2_tb(timingrecovery_tb_arch)
+# Loading work.timingrecovery_v2(rtl)
+# Loading work.cubicinterpolator(rtl)
+# Loading work.interptype_delay(rt1)
+# Loading work.gardnerted_v2(rtl)
+# Loading work.loopfilter_v2(rtl)
+# Loading work.interpctrl_v2(rtl)
+do wave.do
+run -all
+# ** Warning: NUMERIC_STD."=": metavalue detected, returning FALSE
+#    Time: 0 ps  Iteration: 0  Instance: /timingrecovery_v2_tb/dut/interpctrl_jl_inst
+# ** Warning: NUMERIC_STD."=": metavalue detected, returning FALSE
+#    Time: 0 ps  Iteration: 0  Instance: /timingrecovery_v2_tb/dut/interpctrl_jl_inst
+# ** Warning: NUMERIC_STD.TO_SIGNED: vector truncated
+#    Time: 16015 ns  Iteration: 1  Instance: /timingrecovery_v2_tb
+# ** Warning: NUMERIC_STD.TO_SIGNED: vector truncated
+#    Time: 24675 ns  Iteration: 1  Instance: /timingrecovery_v2_tb
+# ** Warning: NUMERIC_STD.TO_SIGNED: vector truncated
+#    Time: 46235 ns  Iteration: 1  Instance: /timingrecovery_v2_tb
+# ** Warning: NUMERIC_STD.TO_SIGNED: vector truncated
+#    Time: 56055 ns  Iteration: 1  Instance: /timingrecovery_v2_tb
+# ** Warning: NUMERIC_STD.TO_SIGNED: vector truncated
+#    Time: 93855 ns  Iteration: 1  Instance: /timingrecovery_v2_tb
+# ** Warning: NUMERIC_STD.TO_SIGNED: vector truncated
+#    Time: 94535 ns  Iteration: 1  Instance: /timingrecovery_v2_tb
+# ** Warning: NUMERIC_STD.TO_SIGNED: vector truncated
+#    Time: 94855 ns  Iteration: 1  Instance: /timingrecovery_v2_tb
+# ** Warning: NUMERIC_STD.TO_SIGNED: vector truncated
+#    Time: 95655 ns  Iteration: 1  Instance: /timingrecovery_v2_tb
+# ** Warning: NUMERIC_STD.TO_SIGNED: vector truncated
+#    Time: 134455 ns  Iteration: 1  Instance: /timingrecovery_v2_tb
+# ** Warning: NUMERIC_STD.TO_SIGNED: vector truncated
+#    Time: 134535 ns  Iteration: 1  Instance: /timingrecovery_v2_tb
+# ** Warning: NUMERIC_STD.TO_SIGNED: vector truncated
+#    Time: 175215 ns  Iteration: 1  Instance: /timingrecovery_v2_tb
+# ** Warning: NUMERIC_STD.TO_SIGNED: vector truncated
+#    Time: 184475 ns  Iteration: 1  Instance: /timingrecovery_v2_tb
+# ** Warning: NUMERIC_STD.TO_SIGNED: vector truncated
+#    Time: 214735 ns  Iteration: 1  Instance: /timingrecovery_v2_tb
+# ** Warning: NUMERIC_STD.TO_SIGNED: vector truncated
+#    Time: 243635 ns  Iteration: 1  Instance: /timingrecovery_v2_tb
+# ** Warning: NUMERIC_STD.TO_SIGNED: vector truncated
+#    Time: 244995 ns  Iteration: 1  Instance: /timingrecovery_v2_tb
+# ** Warning: NUMERIC_STD.TO_SIGNED: vector truncated
+#    Time: 245475 ns  Iteration: 1  Instance: /timingrecovery_v2_tb
+# ** Warning: NUMERIC_STD.TO_SIGNED: vector truncated
+#    Time: 265795 ns  Iteration: 1  Instance: /timingrecovery_v2_tb
+# ** Warning: NUMERIC_STD.TO_SIGNED: vector truncated
+#    Time: 315575 ns  Iteration: 1  Instance: /timingrecovery_v2_tb
+# ** Warning: NUMERIC_STD.TO_SIGNED: vector truncated
+#    Time: 324235 ns  Iteration: 1  Instance: /timingrecovery_v2_tb
+# ** Warning: NUMERIC_STD.TO_SIGNED: vector truncated
+#    Time: 344675 ns  Iteration: 1  Instance: /timingrecovery_v2_tb
+# ** Warning: NUMERIC_STD.TO_SIGNED: vector truncated
+#    Time: 345515 ns  Iteration: 1  Instance: /timingrecovery_v2_tb
+# ** Warning: NUMERIC_STD.TO_SIGNED: vector truncated
+#    Time: 354855 ns  Iteration: 1  Instance: /timingrecovery_v2_tb
+# ** Warning: NUMERIC_STD.TO_SIGNED: vector truncated
+#    Time: 374175 ns  Iteration: 1  Instance: /timingrecovery_v2_tb
+# ** Warning: NUMERIC_STD.TO_SIGNED: vector truncated
+#    Time: 374695 ns  Iteration: 1  Instance: /timingrecovery_v2_tb
+# ** Warning: NUMERIC_STD.TO_SIGNED: vector truncated
+#    Time: 374775 ns  Iteration: 1  Instance: /timingrecovery_v2_tb
+# ** Warning: NUMERIC_STD.TO_SIGNED: vector truncated
+#    Time: 395415 ns  Iteration: 1  Instance: /timingrecovery_v2_tb
+# Compile of timingrecovery_v2_tb.vhd was successful with warnings.
+# Compile of CubicInterpolator.vhd was successful.
+# Compile of GardnerTED_v2.vhd was successful.
+# Compile of InterpCtrl_v2.vhd was successful.
+# Compile of InterpType_delay.vhd was successful.
+# Compile of LoopFilter_v2.vhd was successful.
+# Compile of TimingRecovery_v2.vhd was successful.
+# 7 compiles, 0 failed with no errors. 
+# Compile of timingrecovery_v2_tb.vhd was successful with warnings.
+# Compile of CubicInterpolator.vhd was successful.
+# Compile of GardnerTED_v2.vhd was successful.
+# Compile of InterpCtrl_v2.vhd was successful.
+# Compile of InterpType_delay.vhd was successful.
+# Compile of LoopFilter_v2.vhd was successful.
+# Compile of TimingRecovery_v2.vhd was successful.
+# 7 compiles, 0 failed with no errors. 
+restart
+# Loading work.timingrecovery_v2_tb(timingrecovery_tb_arch)
+# Loading work.timingrecovery_v2(rtl)
+# Loading work.cubicinterpolator(rtl)
+# Loading work.interptype_delay(rt1)
+# Loading work.gardnerted_v2(rtl)
+# Loading work.loopfilter_v2(rtl)
+# Loading work.interpctrl_v2(rtl)
+run -all
+# ** Warning: NUMERIC_STD."=": metavalue detected, returning FALSE
+#    Time: 0 ps  Iteration: 0  Instance: /timingrecovery_v2_tb/dut/interpctrl_jl_inst
+# ** Warning: NUMERIC_STD."=": metavalue detected, returning FALSE
+#    Time: 0 ps  Iteration: 0  Instance: /timingrecovery_v2_tb/dut/interpctrl_jl_inst
+# Compile of timingrecovery_v2_tb.vhd was successful with warnings.
+# Compile of CubicInterpolator.vhd was successful.
+# Compile of GardnerTED_v2.vhd was successful.
+# Compile of InterpCtrl_v2.vhd was successful.
+# Compile of InterpType_delay.vhd was successful.
+# Compile of LoopFilter_v2.vhd was successful.
+# Compile of TimingRecovery_v2.vhd was successful.
+# 7 compiles, 0 failed with no errors. 
+restart
+# Loading work.timingrecovery_v2_tb(timingrecovery_tb_arch)
+# Loading work.timingrecovery_v2(rtl)
+# Loading work.cubicinterpolator(rtl)
+# Loading work.interptype_delay(rt1)
+# Loading work.gardnerted_v2(rtl)
+# Loading work.loopfilter_v2(rtl)
+# Loading work.interpctrl_v2(rtl)
+run -all
+# ** Warning: NUMERIC_STD."=": metavalue detected, returning FALSE
+#    Time: 0 ps  Iteration: 0  Instance: /timingrecovery_v2_tb/dut/interpctrl_jl_inst
+# ** Warning: NUMERIC_STD."=": metavalue detected, returning FALSE
+#    Time: 0 ps  Iteration: 0  Instance: /timingrecovery_v2_tb/dut/interpctrl_jl_inst
+# ** Warning: NUMERIC_STD.TO_SIGNED: vector truncated
+#    Time: 16015 ns  Iteration: 1  Instance: /timingrecovery_v2_tb
+# ** Warning: NUMERIC_STD.TO_SIGNED: vector truncated
+#    Time: 24675 ns  Iteration: 1  Instance: /timingrecovery_v2_tb
+# ** Warning: NUMERIC_STD.TO_SIGNED: vector truncated
+#    Time: 46235 ns  Iteration: 1  Instance: /timingrecovery_v2_tb
+# ** Warning: NUMERIC_STD.TO_SIGNED: vector truncated
+#    Time: 56055 ns  Iteration: 1  Instance: /timingrecovery_v2_tb
+# ** Warning: NUMERIC_STD.TO_SIGNED: vector truncated
+#    Time: 93855 ns  Iteration: 1  Instance: /timingrecovery_v2_tb
+# ** Warning: NUMERIC_STD.TO_SIGNED: vector truncated
+#    Time: 94535 ns  Iteration: 1  Instance: /timingrecovery_v2_tb
+# ** Warning: NUMERIC_STD.TO_SIGNED: vector truncated
+#    Time: 94855 ns  Iteration: 1  Instance: /timingrecovery_v2_tb
+# ** Warning: NUMERIC_STD.TO_SIGNED: vector truncated
+#    Time: 95655 ns  Iteration: 1  Instance: /timingrecovery_v2_tb
+# ** Warning: NUMERIC_STD.TO_SIGNED: vector truncated
+#    Time: 134455 ns  Iteration: 1  Instance: /timingrecovery_v2_tb
+# ** Warning: NUMERIC_STD.TO_SIGNED: vector truncated
+#    Time: 134535 ns  Iteration: 1  Instance: /timingrecovery_v2_tb
+# ** Warning: NUMERIC_STD.TO_SIGNED: vector truncated
+#    Time: 175215 ns  Iteration: 1  Instance: /timingrecovery_v2_tb
+# ** Warning: NUMERIC_STD.TO_SIGNED: vector truncated
+#    Time: 184475 ns  Iteration: 1  Instance: /timingrecovery_v2_tb
+# ** Warning: NUMERIC_STD.TO_SIGNED: vector truncated
+#    Time: 214735 ns  Iteration: 1  Instance: /timingrecovery_v2_tb
+# ** Warning: NUMERIC_STD.TO_SIGNED: vector truncated
+#    Time: 243635 ns  Iteration: 1  Instance: /timingrecovery_v2_tb
+# ** Warning: NUMERIC_STD.TO_SIGNED: vector truncated
+#    Time: 244995 ns  Iteration: 1  Instance: /timingrecovery_v2_tb
+# ** Warning: NUMERIC_STD.TO_SIGNED: vector truncated
+#    Time: 245475 ns  Iteration: 1  Instance: /timingrecovery_v2_tb
+# ** Warning: NUMERIC_STD.TO_SIGNED: vector truncated
+#    Time: 265795 ns  Iteration: 1  Instance: /timingrecovery_v2_tb
+# ** Warning: NUMERIC_STD.TO_SIGNED: vector truncated
+#    Time: 315575 ns  Iteration: 1  Instance: /timingrecovery_v2_tb
+# ** Warning: NUMERIC_STD.TO_SIGNED: vector truncated
+#    Time: 324235 ns  Iteration: 1  Instance: /timingrecovery_v2_tb
+# ** Warning: NUMERIC_STD.TO_SIGNED: vector truncated
+#    Time: 344675 ns  Iteration: 1  Instance: /timingrecovery_v2_tb
+# ** Warning: NUMERIC_STD.TO_SIGNED: vector truncated
+#    Time: 345515 ns  Iteration: 1  Instance: /timingrecovery_v2_tb
+# ** Warning: NUMERIC_STD.TO_SIGNED: vector truncated
+#    Time: 354855 ns  Iteration: 1  Instance: /timingrecovery_v2_tb
+# ** Warning: NUMERIC_STD.TO_SIGNED: vector truncated
+#    Time: 374175 ns  Iteration: 1  Instance: /timingrecovery_v2_tb
+# ** Warning: NUMERIC_STD.TO_SIGNED: vector truncated
+#    Time: 374695 ns  Iteration: 1  Instance: /timingrecovery_v2_tb
+# ** Warning: NUMERIC_STD.TO_SIGNED: vector truncated
+#    Time: 374775 ns  Iteration: 1  Instance: /timingrecovery_v2_tb
+# ** Warning: NUMERIC_STD.TO_SIGNED: vector truncated
+#    Time: 395415 ns  Iteration: 1  Instance: /timingrecovery_v2_tb
+# Compile of timingrecovery_v2_tb.vhd was successful with warnings.
+# Compile of CubicInterpolator.vhd was successful.
+# Compile of GardnerTED_v2.vhd was successful.
+# Compile of InterpCtrl_v2.vhd was successful.
+# Compile of InterpType_delay.vhd was successful.
+# Compile of LoopFilter_v2.vhd was successful.
+# Compile of TimingRecovery_v2.vhd was successful.
+# 7 compiles, 0 failed with no errors. 
+restart
+# Loading work.timingrecovery_v2_tb(timingrecovery_tb_arch)
+# Loading work.timingrecovery_v2(rtl)
+# Loading work.cubicinterpolator(rtl)
+# Loading work.interptype_delay(rt1)
+# Loading work.gardnerted_v2(rtl)
+# Loading work.loopfilter_v2(rtl)
+# Loading work.interpctrl_v2(rtl)
+run -all
+# ** Warning: NUMERIC_STD."=": metavalue detected, returning FALSE
+#    Time: 0 ps  Iteration: 0  Instance: /timingrecovery_v2_tb/dut/interpctrl_jl_inst
+# ** Warning: NUMERIC_STD."=": metavalue detected, returning FALSE
+#    Time: 0 ps  Iteration: 0  Instance: /timingrecovery_v2_tb/dut/interpctrl_jl_inst
+# Closing project E:/work/2011/10/Demod_Para_v0.1/source/TR_S/ModelSim/sim_TR_S.mpf
+# reading C:\altera\11.0\modelsim_ae\win32aloem/../modelsim.ini

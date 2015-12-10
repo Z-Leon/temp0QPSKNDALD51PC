@@ -1,0 +1,179 @@
+-------------------------------------------------------------------------------
+--
+-- File: phase_framesync_p.v
+-- Author: wency 
+-- Original Project:phase_frame_p 
+-- Date: 2010.10
+--
+-------------------------------------------------------------------------------
+--
+-- (c) 2010 Copyright Wireless Broadband Transmission Lab
+-- All Rights Reserved
+-- EE Dept. at Tsinghua University.
+--
+-------------------------------------------------------------------------------
+-- Purpose: 
+-- This file is the top file of synchronization part that the data has phase shift
+-- -------------------------------------------------------------------------------
+
+library IEEE;
+--use ieee.numeric_std.all;
+use ieee.std_logic_1164.all;
+use ieee.std_logic_unsigned.all;
+
+entity	phase_frame_p	 is         
+port(
+	 clk       : in std_logic;
+	 reset     : in std_logic;
+	 
+	 data_in    : in std_logic_vector(32 downto 1);
+	 data_in_val: in std_logic;
+	 
+	 dataout    : out std_logic_vector(32 downto 1);
+	 o_sop      : out std_logic;  --每一帧的开始输出信号
+    o_val      : out std_logic;  --输出数据有效信号
+    o_eop      : out std_logic;  --每一帧的输出结束信号
+    o_state    : out std_logic_vector(3 downto 1)
+     );	 
+end	phase_frame_p;
+
+architecture rtl of phase_frame_p is
+    
+  component phase_calculate	 is         
+    port(
+	 clk        : in std_logic;
+	 reset      : in std_logic;
+	 
+	 data_in    : in std_logic_vector(32 downto 1);
+	 data_in_val: in std_logic;
+	 
+	 data_out    :out std_logic_vector(32 downto 1);
+	 data_out_val:out std_logic;
+	 
+	 corr_sum    :out std_logic_vector(24 downto 1)
+	 );	 
+  end component;
+  
+  component phase_erase is
+    port(
+     clk      : in std_logic;
+	 reset     : in std_logic;
+	 
+	 data_in    : in std_logic_vector(32 downto 1);
+	 data_in_val: in std_logic;
+	 corr_sum   : in std_logic_vector(24 downto 1);
+	 state_in   : in std_logic_vector(3 downto 1);
+	 
+	 data_out    :out std_logic_vector(32 downto 1);
+	 data_out_val:out std_logic
+	  );
+	end component;
+	 
+  component asm_mark_p is
+   port(
+	  clk      : in std_logic;
+	 reset     : in std_logic;
+	 
+	 data_in    : in std_logic_vector(32 downto 1);
+	 data_in_val: in std_logic;
+	 s_state    : in std_logic_vector(3 downto 1);
+	 
+	 data_out    :out std_logic_vector(32 downto 1);
+	 data_out_val:out std_logic;
+	 
+	 s_asm       :out std_logic_vector(8 downto 1)    --attached syn maker(asm)
+	 );	 
+   end	component;
+   
+   component asm_modify	 is         
+    port(
+	 clk       : in std_logic;
+	 reset     : in std_logic;
+	 
+	 data_in   : in std_logic_vector(32 downto 1);
+	 i_sink_asm: in std_logic_vector(8 downto 1);    --attached syn maker(asm)
+	 i_sink_val: in std_logic;
+	 
+	 dataout32   : out std_logic_vector(32 downto 1);
+	 o_sop       : out std_logic;  --每一帧的开始输出信号
+    o_eop       : out std_logic;  --每一帧的输出结束信号
+    o_val       : out std_logic;  --输出数据有效信号
+    s_state     : out std_logic_vector(3 downto 1)
+    );	 
+
+   end	component;
+   
+   
+   signal data_out_phase_calculate :std_logic_vector(32 downto 1);
+   signal data_out_val_phase_calculate :std_logic;
+   signal corr_sum_phase_calculate :std_logic_vector(24 downto 1);
+   
+   signal data_out_phase_erase  :std_logic_vector(32 downto 1);
+	signal data_out_val_phase_erase :std_logic;
+   
+   signal data_out_asm_mark  :std_logic_vector(32 downto 1);
+	signal data_out_val_asm_mark :std_logic;
+	signal s_asm_asm_mark :std_logic_vector(8 downto 1);
+	
+   signal s_state:std_logic_vector(3 downto 1);
+   
+  begin
+     
+     phase_calculate_inst:phase_calculate
+       port map(
+        clk => clk,
+	     reset=>reset,
+	 
+	     data_in => data_in,
+	     data_in_val=>data_in_val,
+	  
+	     data_out=> data_out_phase_calculate,
+	     data_out_val=>data_out_val_phase_calculate,
+	     corr_sum=>corr_sum_phase_calculate
+	      );
+	     
+       
+     phase_erase_inst:phase_erase
+       port map(
+        clk => clk,
+	     reset=>reset,
+	 
+	     data_in => data_out_phase_calculate,
+	     data_in_val=>data_out_val_phase_calculate,
+	     corr_sum=>corr_sum_phase_calculate,
+	     state_in=>s_state,
+	     
+	     data_out=>data_out_phase_erase,
+	     data_out_val=>data_out_val_phase_erase
+	      );
+	     
+     asm_mark_p_inst : asm_mark_p 
+	   port map(
+        clk=>clk,
+	     reset=>reset,
+	     data_in=>data_out_phase_erase,
+	     data_in_val=>data_out_val_phase_erase,
+	     s_state=>s_state,
+	     
+	     data_out=>data_out_asm_mark,
+	     data_out_val=>data_out_val_asm_mark,
+	     s_asm =>s_asm_asm_mark
+	     );
+	    
+	  asm_modify_inst : asm_modify 
+		port map(
+        clk=>clk,
+	     reset=>reset,
+	     
+	     data_in=>data_out_asm_mark,
+	     i_sink_asm=>s_asm_asm_mark,    --attached syn maker(asm)
+	     i_sink_val=>data_out_val_asm_mark,
+	 
+	     dataout32=>dataout,
+	     o_sop=>o_sop,                  --每一帧的开始输出信号
+        o_val=>o_val,                  --输出数据有效信号
+        o_eop => o_eop,                --每一帧的输出结束信号
+        s_state=>s_state
+	     ); 
+	    o_state<=s_state;
+	 end rtl;   

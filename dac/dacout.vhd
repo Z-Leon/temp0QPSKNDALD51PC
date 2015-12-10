@@ -1,0 +1,198 @@
+
+--
+--
+--
+library ieee;
+use ieee.std_logic_1164.all;
+use ieee.std_logic_unsigned.all;
+use ieee.std_logic_arith.all;
+entity dacout is 
+port
+(
+ -- usr interface
+ dac_usr_clk     : out std_logic                     ;
+ dac_usr_data    : in  std_logic_vector(111 downto 0); 
+ use_test_data   : in  std_logic                     ;
+ 
+ -- dac chip interface
+ dac_dataclko    : in  std_logic                     ;
+ --dac_dataclki    : out std_logic                     ;
+ dac_data        : out std_logic_vector(14 downto 0) ;
+ dac_reset       : out std_logic                     ;
+ dac_irq         : out std_logic                     ;
+ dac_cs          : out std_logic                     ;
+ dac_sdio        : out std_logic                     ;
+ dac_sclk        : out std_logic                     ;
+ dac_sdo         : out std_logic                     ;
+ dac_mode        : out std_logic       ;
+ clk_toFPGA2	  : out std_logic--20MHz
+);
+end entity dacout ;
+	
+architecture rtl of dacout is 
+	
+	
+	component dac_clk_pll2 is
+	port (
+	inclk0 : in  std_logic ;
+	c0     : out std_logic ;
+	c1     : out std_logic ;
+	locked : out std_logic 
+	);
+	end component ;
+	
+component sin_gen is
+port
+( 	areset : in std_logic;
+		clk : in std_logic;
+		data0 : out std_logic_vector(13 downto 0);
+		data1 : out std_logic_vector(13 downto 0);
+		data2 : out std_logic_vector(13 downto 0);
+		data3 : out std_logic_vector(13 downto 0);
+		data4 : out std_logic_vector(13 downto 0);
+		data5 : out std_logic_vector(13 downto 0);
+		data6 : out std_logic_vector(13 downto 0);
+		data7 : out std_logic_vector(13 downto 0));
+end component;
+	
+	
+component dac_interface is 
+port
+	(
+	tx_in         : in  std_logic_vector(119 downto 0) ;   
+	tx_inclock    : in  std_logic                      ;
+	--tx_coreclock  : out std_logic                      ;
+	tx_out        : out std_logic_vector(14 downto 0)  
+	--tx_outclock   : out std_logic                      
+	);
+end component;	
+	
+component dac_data_convert is                                         
+	generic(                                                 
+		kInSize	 : positive := 14;                             
+		kOutSize : positive := 120                             
+	   );                                                    
+	port(                                                    
+		aReset	: in  std_logic;                               
+		clk	: in  std_logic;                                   
+		cDin0	: in  std_logic_vector (kInSize-1 downto 0);     
+		cDin1	: in  std_logic_vector (kInSize-1 downto 0);     
+		cDin2	: in  std_logic_vector (kInSize-1 downto 0);     
+		cDin3	: in  std_logic_vector (kInSize-1 downto 0);     
+		cDin4	: in  std_logic_vector (kInSize-1 downto 0);     
+		cDin5	: in  std_logic_vector (kInSize-1 downto 0);     
+		cDin6	: in  std_logic_vector (kInSize-1 downto 0);     
+		cDin7	: in  std_logic_vector (kInSize-1 downto 0);     
+		cDout	: out std_logic_vector (kOutSize-1 downto 0)                                                           
+		);    
+end component;		
+	
+ signal  dac_tx_inclock    : std_logic                        ;
+ signal  dac_tx_data       : std_logic_vector(111 downto 0)   ;
+ signal  dac_test_data     : std_logic_vector(111 downto 0)   ;
+ signal  dac_tx_data_s     : std_logic_vector(119 downto 0)   ;
+ signal  tx_coreclock      : std_logic                        ; 
+ signal  dac_pll_locked    : std_logic                        ;
+ 
+ signal  dac_test_data_p0  : std_logic_vector(13 downto 0)    ;
+ signal  dac_test_data_p1  : std_logic_vector(13 downto 0)    ;
+ signal  dac_test_data_p2  : std_logic_vector(13 downto 0)    ;
+ signal  dac_test_data_p3  : std_logic_vector(13 downto 0)    ;
+ signal  dac_test_data_p4  : std_logic_vector(13 downto 0)    ;
+ signal  dac_test_data_p5  : std_logic_vector(13 downto 0)    ;
+ signal  dac_test_data_p6  : std_logic_vector(13 downto 0)    ;
+ signal  dac_test_data_p7  : std_logic_vector(13 downto 0)    ;
+
+
+ 
+ 
+ begin 
+ 	
+ -- 
+  process(dac_tx_inclock)
+  begin 
+  	if (rising_edge(dac_tx_inclock)) then 
+  		if (use_test_data = '1') then 
+  			   dac_tx_data <= dac_test_data ;
+  		else
+  		     dac_tx_data <= dac_usr_data  ;
+  		end if;
+   end if;
+  end process;
+  			
+   dac_usr_clk <= dac_tx_inclock;
+ 
+ -- assign dac_control sigal 
+   dac_reset <= '0' ; -- in 1 pin mode ,pd  : powerdown the chip 
+   dac_irq   <= '0' ; -- in 1 pin mode ,irq : 0 :inuput data in twos complement ,1: unsigned
+   dac_cs    <= '0' ; -- in 1 pin mode ,2x  : 0 : disable the 2x interpolation
+   dac_sdio  <= '0' ; -- in 1 pin mode ,fifo : 0 : disable fifo sync,1:enable fifo, when disable fifo ,dac maxmim clock speed is 160MHZ
+   dac_sclk  <= '1' ; -- in 1 pin mode ,fsc1 : fsc1 fsc0 ="00" :sleep ,"01":10ma,"10":20ma,"11":30ma
+   dac_sdo   <= '1' ; -- in 1 pin mode ,fsc0 :
+   dac_mode  <= '1' ; -- 1: pin mode 0: spi mode
+ 
+  -- inst input clk pll 
+  dac_clk_pll2_inst : dac_clk_pll2
+  port map
+  (
+	inclk0 => dac_dataclko   ,
+	c0     => dac_tx_inclock ,
+	c1		 => clk_toFPGA2,--20MHz
+	locked => dac_pll_locked  
+	);
+	
+ -- inst sin gen 
+ 
+  sin_source_inst : sin_gen 
+  port map
+   (
+      areset => (not dac_pll_locked)   ,         
+		clk    => dac_tx_inclock          ,         
+		data0  => dac_test_data_p0      ,
+		data1  => dac_test_data_p1      ,
+		data2  => dac_test_data_p2      ,
+		data3  => dac_test_data_p3      ,
+		data4  => dac_test_data_p4      ,
+		data5  => dac_test_data_p5      ,
+		data6  => dac_test_data_p6      ,
+		data7  => dac_test_data_p7      
+		); 
+	
+	dac_test_data	 <= dac_test_data_p7 & dac_test_data_p6  & dac_test_data_p5 & dac_test_data_p4 & dac_test_data_p3 & dac_test_data_p2 & dac_test_data_p1 & dac_test_data_p0 ;
+	
+inst_dac_data_convert: dac_data_convert 
+	generic map(                                                 
+		kInSize	 => 14 ,                             
+		kOutSize => 120                             
+	   )                                                    
+	port map
+	(                                                    
+		aReset	=> (not dac_pll_locked ),                             
+		clk	    => dac_tx_inclock       ,                           
+		cDin0	  => dac_tx_data(13 downto  0) ,     
+		cDin1	  => dac_tx_data(27 downto 14) ,     
+		cDin2	  => dac_tx_data(41 downto 28) ,   
+		cDin3	  => dac_tx_data(55 downto 42) ,   
+		cDin4	  => dac_tx_data(69 downto 56) ,   
+		cDin5	  => dac_tx_data(83 downto 70) ,   
+		cDin6	  => dac_tx_data(97 downto 84) ,   
+		cDin7	  => dac_tx_data(111 downto 98) ,   
+		cDout	  => dac_tx_data_s    	                                                       
+		);
+	
+	
+	
+ -- inst dac lvds_tx 
+ dac_dut : dac_interface
+  port map
+   (
+	tx_in         => dac_tx_data_s  ,
+	tx_inclock    => dac_tx_inclock ,
+	--tx_coreclock  => tx_coreclock   ,
+	tx_out        => dac_data       
+	--tx_outclock   => dac_dataclki   
+	);
+	
+	
+	
+end architecture rtl; 

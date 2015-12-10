@@ -1,0 +1,171 @@
+   library ieee;
+    use ieee.std_logic_1164.all;
+    use ieee.numeric_std.all;
+    use ieee.std_logic_unsigned.all;
+    
+    entity ldpc_enc is  -- define entity
+	port
+	(  reset        :   in std_logic;
+		clk          :   in std_logic;
+	
+		ldpc_in      :   in std_logic_vector(7 downto 0);
+		i_sink_val   :   in std_logic;
+		i_sink_sop   :   in std_logic;
+		i_sink_eop   :   in std_logic;
+	
+		ldpc_out     :   out std_logic_vector(7 downto 0);
+		o_src_val    :   out std_logic;
+		o_src_sop    :   out std_logic;
+		o_src_eop    :   out std_logic
+	 );
+	end ldpc_enc;
+	
+	architecture rtl of ldpc_enc is
+	
+	constant c_info    : std_logic:='0';
+	constant c_parity  : std_logic:='1';
+	
+	signal state       :   std_logic;
+	signal parity_out  :   std_logic_vector(7 downto 0);
+	signal parity_val  :   std_logic;
+	signal encode_done :   std_logic;
+	
+	type ldpc_in_shift_move is array (6 downto 0) of std_logic_vector(7 downto 0);
+	
+	signal ldpc_in_shift     :  ldpc_in_shift_move;
+	signal i_sink_val_shift  :  std_logic_vector(6 downto 0);
+	signal i_sink_sop_shift  :  std_logic_vector(6 downto 0);
+	signal i_sink_eop_shift  :  std_logic_vector(6 downto 0);
+	
+	signal begin_sign        :  std_logic_vector(15 downto 0);
+	
+	
+	component pipo_parallel  is 
+		port
+		(               
+			reset       :   in std_logic;
+			clk         :   in std_logic;
+			info_in     :   in std_logic_vector(7 downto 0);
+			i_sink_val  :   in std_logic;
+			i_sop       :   in std_logic;
+			i_eop       :   in std_logic; 
+	
+	
+			parity_out  :   out std_logic_vector(7 downto 0);
+			o_src_val   :   out std_logic;
+			encode_done :   out std_logic
+		);
+		end component;
+
+	begin
+	    
+	   process ( reset , clk )
+	   variable   i   :  integer;
+	   begin
+	       
+	       if ( reset='1' ) then
+	           for i in 6 downto 0 loop
+	              ldpc_in_shift(i)    <= (others=>'0');
+	              i_sink_val_shift(i) <= '0';
+	              i_sink_sop_shift(i)  <= '0';
+	              i_sink_eop_shift(i)  <= '0';
+	           end loop;
+	       elsif rising_edge(clk) then
+	           for i in 6 downto 1 loop
+	              ldpc_in_shift(i) <= ldpc_in_shift(i-1);
+	              i_sink_val_shift(i) <= i_sink_val_shift(i-1);
+	              i_sink_sop_shift(i) <= i_sink_sop_shift(i-1);
+	              i_sink_eop_shift(i) <= i_sink_eop_shift(i-1);
+	           end loop;
+	           ldpc_in_shift(0) <= ldpc_in;
+	           i_sink_val_shift(0) <= i_sink_val;
+	           i_sink_sop_shift(0) <= i_sink_sop;
+	           i_sink_eop_shift(0) <= i_sink_eop;
+	           
+	       end if;
+	           
+	   end process;
+	   
+	   process ( reset , clk )
+	
+		begin
+			if ( reset='1' ) then
+				begin_sign <= (others=>'0');
+			elsif rising_edge(clk) then
+				if ( i_sink_val = '1' ) then
+					 begin_sign <= begin_sign + 1;
+				else
+					begin_sign <= (others=>'0');
+				end if;
+			end if;
+		end process;
+	   
+		process ( reset , clk )
+		begin
+			if ( reset='1' ) then
+				state <= c_info;
+			elsif rising_edge(clk) then
+				if ( i_sink_eop_shift(6) = '1' ) then
+					state <= c_parity;
+				elsif ( encode_done = '1') then
+					state <= c_info;
+				else
+					state <= state;
+				end if;
+			end if;
+		end process;
+		
+		process ( reset , clk )
+		begin
+			if ( reset='1' ) then
+				o_src_val <= '0';
+				ldpc_out  <= (others=>'0');
+				o_src_sop <= '0';
+				o_src_eop <= '0';
+			elsif rising_edge(clk) then
+			   if ( state='1' ) then
+			      ldpc_out  <= parity_out ;
+			   elsif ( begin_sign = 3 ) then
+			      ldpc_out  <= x"35"; 
+			   elsif ( begin_sign = 4 ) then
+			      ldpc_out  <= x"2E"; 
+			   elsif ( begin_sign = 5 ) then
+			      ldpc_out  <= x"F8"; 
+			   elsif ( begin_sign = 6 ) then
+			      ldpc_out  <= x"53"; 
+			   else 
+			      ldpc_out  <= ldpc_in_shift(6);
+			   end if;
+				o_src_val <= parity_val or i_sink_val_shift(6);
+				o_src_sop <= i_sink_sop_shift(6);
+		      o_src_eop <= encode_done;
+			end if;
+		end process;    
+		
+
+		--ldpc_out  <= parity_out when state='1' else ldpc_in_shift(6);
+		--o_src_val <= parity_val or i_sink_val_shift(6);
+		--o_src_sop <= i_sink_sop_shift(6);
+		--o_src_eop <= encode_done;
+		
+		pipo_inst : pipo_parallel--jiaoyanwei shengcheng
+		port map
+		(
+			reset       => reset,
+			clk         => clk,
+			info_in     => ldpc_in,
+			i_sink_val  => i_sink_val,	
+			i_sop       => i_sink_sop,
+			i_eop       => i_sink_eop,
+	
+	
+			parity_out  => parity_out,
+			o_src_val   => parity_val,
+			encode_done => encode_done
+		);
+	end rtl;
+
+
+		
+	
+	

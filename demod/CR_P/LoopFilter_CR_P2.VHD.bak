@@ -1,0 +1,153 @@
+---2----------------------------------------------------------------------------
+--
+-- Author: Zaichu Yang
+-- Project: QPSK  Demodulator
+-- Date: 2008.10.10
+--
+-------------------------------------------------------------------------------
+--
+-- Purpose: 
+-- 	Loopfilter for  carrier recovery.
+-------------------------------------------------------------------------------
+--
+-- Revision History: 
+-- 2008.10.23 first revision
+-------------------------------------------------------------------------------
+
+library ieee;
+use ieee.std_logic_1164.all;
+use ieee.numeric_std.all;
+
+entity LoopFilter_CR_P2 is 
+  generic(
+  	kErrWidth   : positive := 12
+  	);
+  port(               
+    aReset            : in  std_logic;
+    Clk               : in std_logic;
+    
+    sErrIn0	      : in std_logic_vector(kErrWidth-1 downto 0);
+    sErrIn1	      : in std_logic_vector(kErrWidth-1 downto 0);
+    sEnableIn	      : in  std_logic;
+               
+--    sEnableOut        : out  Boolean;
+    sLoopOut          : out std_logic_vector(kErrWidth-1 downto 0)
+    );
+end LoopFilter_CR_P2;
+
+architecture rtl of LoopFilter_CR_P2 is
+	constant cAccSize	: positive :=32;
+	
+    signal sErrIn_Inter	      : signed (kErrWidth-1 downto 0);
+
+	type ErrInArray is Array (natural range <>) of signed (kErrWidth-1 downto 0);
+	signal sErrIn_Reg: ErrInArray (3 downto 0);
+	
+	signal sLoopFilter_Pre0,sLoopFilter_Pre1		: signed(kErrWidth-1 downto 0);
+	signal sAcc_Pre0,sAcc_Pre1			: signed(cAccSize - 1 downto 0);
+	signal sAcc_Prop,sAcc_Prop_Reg,sAcc_Integ	: signed(cAccSize - 1 downto 0);	
+	
+	signal sAcc,sLoopOut_Reg	: signed(cAccSize - 1 downto 0); 
+	type BooleanArrary is array (natural range <>) of boolean;
+	signal sEnable_Reg		: BooleanArrary (7 downto 0);
+	
+	signal sS_G_Sign0,sS_G_Sign1 : std_logic_vector (3 downto 0); --停走控制标识
+begin
+
+	process (aReset,Clk)
+	begin
+		if aReset='1' then
+			sErrIn_Inter	<= (others => '0');
+			for i in 0 to 3 loop
+				sErrIn_Reg(i)	<= (others => '0');
+			end loop;
+			sLoopFilter_Pre0		<= (others => '0');
+			sLoopFilter_Pre1		<= (others => '0');
+			sAcc_Pre0		<= (others => '0');
+			sAcc_Pre1		<= (others => '0');
+			sAcc_Prop		<= (others => '0');
+			sAcc_Prop_Reg		<= (others => '0');
+			sAcc_Integ		<= (others => '0');
+			sAcc			<= (others => '0');
+			sLoopOut_Reg		<= (others => '0');
+			sLoopOut		<= (others => '0');
+			sS_G_Sign0	<= (others => '0');
+			sS_G_Sign1	<= (others => '0');
+		elsif rising_edge(Clk) then
+			if sEnableIn='1' then
+				-- the first pipline
+				sErrIn_Inter	<= signed(sErrIn0)+signed(sErrIn1);
+				 -- the second pipline
+				 
+				sErrIn_Reg(0)	<= shift_right(sErrIn_Inter,1);
+--				sErrIn_Reg(3)	<= sErrIn_Reg(1);
+				
+				
+				-- the third pipline
+				sErrIn_Reg(1)	<= sErrIn_Reg(0);
+				if sErrIn_Reg(1)(kErrWidth-1)=sErrIn_Reg(0)(kErrWidth-1) then
+					sLoopFilter_Pre0	<= sErrIn_Reg(0) - sErrIn_Reg(1);
+					sS_G_Sign0(0)			<= '0';
+				else
+					--sLoopFilter_Pre1	<= (others => '0');
+					sS_G_Sign0(0)			<= '1';
+				end if;
+--				if sErrIn_Reg(1)(kErrWidth-1)=sErrIn_Reg(2)(kErrWidth-1) then
+--					sLoopFilter_Pre0	<= sErrIn_Reg(2) - sErrIn_Reg(1);
+--					sS_G_Sign0(0)			<= '0';
+--				else
+--					--sLoopFilter_Pre0	<= (others => '0');
+--					sS_G_Sign0(0)			<= '1';
+--				end if;
+				
+				for i in 1 to 3 loop
+					sS_G_Sign0(i)			<= sS_G_Sign0(i-1);
+--					sS_G_Sign1(i)			<= sS_G_Sign1(i-1);
+				end	loop;
+
+				-- the fourth pipline
+--				if sS_G_Sign1(0)='0' then
+					sAcc_Pre1	<=  (sLoopFilter_Pre0 & to_signed(0,cAccSize-kErrWidth));-- + (sLoopFilter_Pre0 & to_signed(0,cAccSize-kErrWidth));
+--				elsif sS_G_Sign0(0)='0' then
+--					sAcc_Pre1	<=  sLoopFilter_Pre0 & to_signed(0,cAccSize-kErrWidth);
+--				else
+--					sAcc_Pre1	<= sAcc_Pre1;
+--				end if;
+				
+--				if sS_G_Sign0(0)='0' then
+--					sAcc_Pre0	<=  sLoopFilter_Pre1 & to_signed(0,cAccSize-kErrWidth);
+--				else
+--					sAcc_Pre0	<= sAcc_Pre1;
+--				end if;
+				
+				--sAcc_Pre0	<=  sLoopFilter_Pre0 & to_signed(0,cAccSize-kErrWidth);
+				
+				-- the fifth pipline
+				sAcc_Integ	<= shift_right(sAcc_Pre1,12);--shift_right(sAcc_Pre0,16)+shift_right(sAcc_Pre1,16);
+				sAcc_Prop	<= shift_right(sAcc_Pre1,6);
+				
+				-- the sixth pipline
+				sAcc_Prop_Reg	<= sAcc_Prop;
+--				if sAcc>to_signed(63055100,cAccSize) or sAcc<to_signed(-63055100,cAccSize) then
+--				    sAcc   <= (others => '0');
+--				else
+				   sAcc		<= sAcc+sAcc_Integ;
+--				end if;
+				 
+				
+				-- the seventh pipline
+				--if sS_G_Sign1(3)='0' then
+					sLoopOut_Reg	<= sAcc_Prop_Reg+sAcc;
+				--else
+				--	null;
+				--end if;
+				-- the eighth pipline
+				sLoopOut	<= std_logic_vector( sLoopOut_Reg(cAccSize - 1 downto cAccSize-kErrWidth));
+			else
+				null;
+			end if;
+
+		end if;
+	end process;
+	
+end rtl;  
