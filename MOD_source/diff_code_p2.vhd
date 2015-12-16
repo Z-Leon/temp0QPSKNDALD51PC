@@ -61,6 +61,8 @@ process(aReset,clk)
 				when "11" =>
 					dataout_i(0) <= '1';
 					dataout_q(0) <= '0';
+				when others =>
+					null;
 			end case;	
 			
 			case code_out_1 is
@@ -76,6 +78,8 @@ process(aReset,clk)
 				when "11" =>
 					dataout_i(1) <= '1';
 					dataout_q(1) <= '0';
+				when others =>
+					null;
 			end case;	
 	end if;
 end process;

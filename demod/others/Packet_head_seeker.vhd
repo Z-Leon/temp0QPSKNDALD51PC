@@ -38,8 +38,8 @@ architecture arch of Packet_head_seeker is
 	constant pkt_head : std_logic_vector := x"352ef853";  -- Big endian by byte 
 	constant pkt_len : integer := 8192;  --length of one packet
 
-  constant thd_acq : unsigned(5 downto 0) := "000010";
-  constant thd_syn : unsigned(5 downto 0) := "000100";
+  constant thd_acq : unsigned(5 downto 0) := "000000";
+  constant thd_syn : unsigned(5 downto 0) := "000010";
   signal thd : unsigned(5 downto 0);
 
 	type d_array is array (natural range <>) of std_logic_vector(n_bit*n_parellel-1 downto 0) ;
@@ -284,14 +284,14 @@ process (clk, aReset)
        cnt_glb <= 0; 
      elsif( rising_edge(clk) ) then
      if val_in = '1' then
-       if state = s0 then
-        if hit_pos(3) = '1' then
-          cnt_glb <= 0;
-        else
-          cnt_glb <= cnt_glb + 1;
-        end if;
+       if state = s0 and hit_pos(3) = '1' then
+            cnt_glb <= 0;
        else
-          cnt_glb <= cnt_glb + 1;
+            if cnt_glb = 1023 then
+              cnt_glb <= 0;
+            else
+              cnt_glb <= cnt_glb + 1;
+            end if;
        end if;
      end if;
      end if;

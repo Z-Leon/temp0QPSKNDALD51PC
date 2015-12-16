@@ -47,14 +47,15 @@ signal data_reg0,data_reg1,data_reg2,data_reg3 : std_logic_vector(3 downto 0);
 signal rdreq ,rdreq_reg : std_logic;
 signal rdusedw		: STD_LOGIC_VECTOR (7 DOWNTO 0);
 signal q :  STD_LOGIC_VECTOR (31 DOWNTO 0);
+signal comb_din : std_logic_vector(15 downto 0) ;
 
 begin
-
+comb_din <= data_in3 & data_in2 & data_in1 & data_in0;
 fifo_datap4top8_inst : fifo_datap4top8 
 	PORT map 
 	(
 		aclr		=> aReset,
-		data		=> data_in3 & data_in2 & data_in1 & data_in0,
+		data		=> comb_din, --data_in3 & data_in2 & data_in1 & data_in0,
 		rdclk		=> clkout,
 		rdreq		=> rdreq,
 		wrclk		=> clk,

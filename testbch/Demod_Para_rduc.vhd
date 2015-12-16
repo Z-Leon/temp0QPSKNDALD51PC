@@ -15,25 +15,33 @@ library ieee;
 use ieee.std_logic_1164.all;
 use ieee.numeric_std.all;
 
-entity	Demod_Para	is
+entity	Demod_Para_rduc	is
 generic	(
 			kInSize  : positive :=12
 		);
 port	(
 		aReset          : in  std_logic; 
-		clk_100         : in  std_logic;
+		--clk_100         : in  std_logic;
 		pclk_I			: in  std_logic;  -- 50MHz
 		rclk           : in std_logic ; --75MHZ
 		rclk_half		: in std_logic; -- 37.5MHz
 		
-		AD_d0			: in std_logic_vector(kInSize-1 downto 0);
-		AD_d1			: in std_logic_vector(kInSize-1 downto 0);
-		AD_d2			: in std_logic_vector(kInSize-1 downto 0);
-		AD_d3           : in std_logic_vector(kInSize-1 downto 0);
-		AD_d4			: in std_logic_vector(kInSize-1 downto 0);
-		AD_d5           : in std_logic_vector(kInSize-1 downto 0);
-		AD_d6           : in std_logic_vector(kInSize-1 downto 0);
-		AD_d7           : in std_logic_vector(kInSize-1 downto 0);
+		AD_d0_I			: in std_logic_vector(kInSize-1 downto 0);
+		AD_d1_I			: in std_logic_vector(kInSize-1 downto 0);
+		AD_d2_I			: in std_logic_vector(kInSize-1 downto 0);
+		AD_d3_I           : in std_logic_vector(kInSize-1 downto 0);
+		AD_d4_I			: in std_logic_vector(kInSize-1 downto 0);
+		AD_d5_I           : in std_logic_vector(kInSize-1 downto 0);
+		AD_d6_I           : in std_logic_vector(kInSize-1 downto 0);
+		AD_d7_I           : in std_logic_vector(kInSize-1 downto 0);
+		AD_d0_Q			: in std_logic_vector(kInSize-1 downto 0);
+		AD_d1_Q			: in std_logic_vector(kInSize-1 downto 0);
+		AD_d2_Q			: in std_logic_vector(kInSize-1 downto 0);
+		AD_d3_Q           : in std_logic_vector(kInSize-1 downto 0);
+		AD_d4_Q			: in std_logic_vector(kInSize-1 downto 0);
+		AD_d5_Q           : in std_logic_vector(kInSize-1 downto 0);
+		AD_d6_Q           : in std_logic_vector(kInSize-1 downto 0);
+		AD_d7_Q           : in std_logic_vector(kInSize-1 downto 0);
 
 		with_LDPC		: in std_logic;
 		
@@ -43,8 +51,8 @@ port	(
 		val_mux : out std_logic
 		
 		);
-end	Demod_Para;
-architecture rtl of	Demod_Para	is 
+end	Demod_Para_rduc;
+architecture rtl of	Demod_Para_rduc	is 
 
 	--------------------------component declare(start)------------------------
 
@@ -664,45 +672,110 @@ signal phase_change, rst_equ : std_logic;
     signal val_frame_2    :  std_logic;  
     signal eop_frame_2    :  std_logic;
 
+    signal comb_cr_rst : std_logic;
+	signal comb_diffdcd_i, comb_diffdcd_q : std_logic_vector(1 downto 0) ;
+	signal comb_headseek : std_logic_vector(31 downto 0) ;
+	signal comb_aclrff8to4 : std_logic;
+
 	--------------------------signal define(end)------------------------------
 begin	
 	
-	Demod_preCR_inst:  Demod_preCR
-	generic map(
-		kInSize => 8,
-		kDataWidth => 8  )
-	port map(
-		aReset          => aReset,    
-		clk_100         => clk_100,  
-		pclk_I			=> pclk_I,
-		rclk           	=> rclk,   
-		rclk_half		=> rclk_half,
-		
-		AD_d0			=> AD_d0,
-		AD_d1			=> AD_d1,
-		AD_d2			=> AD_d2,
-		AD_d3           => AD_d3,
-		AD_d4			=> AD_d4,
-		AD_d5           => AD_d5,
-		AD_d6           => AD_d6,
-		AD_d7           => AD_d7,
+	inst_shape_I:	shapingfilter_p8	
+generic map(
+		kInSize  => 8,
+		kOutSize => 8)
+port map(
+		aReset	=> aReset ,
+		Clk		=> pclk_I ,
+		cDin0	   => AD_d0_I	 ,
+		cDin1      => AD_d1_I	 ,
+		cDin2	   => AD_d2_I	 ,
+		cDin3	   => AD_d3_I  ,
+		cDin4	   => AD_d4_I	 ,
+		cDin5	   => AD_d5_I  ,
+		cDin6	   => AD_d6_I  ,
+		cDin7	   => AD_d7_I  ,
+		cDout0	 => TR_in_I(0)   ,
+		cDout1	 => TR_in_I(1)   ,
+		cDout2	 => TR_in_I(2)   ,
+		cDout3	 => TR_in_I(3)   ,
+		cDout4	 => TR_in_I(4)   ,
+		cDout5	 => TR_in_I(5)   ,
+		cDout6	 => TR_in_I(6)   ,
+		cDout7	 => TR_in_I(7)   
+		);
 
-		std_logic_vector(sInPhaseOut0)      => TR_out_I(0),
-        std_logic_vector(sInPhaseOut1)      => TR_out_I(1),
-        std_logic_vector(sInPhaseOut2)      => TR_out_I(2),
-        std_logic_vector(sInPhaseOut3)      => TR_out_I(3),
-        std_logic_vector(sQuadPhaseOut0)    => TR_out_Q(0),
-        std_logic_vector(sQuadPhaseOut1)    => TR_out_Q(1),
-        std_logic_vector(sQuadPhaseOut2)    => TR_out_Q(2),
-        std_logic_vector(sQuadPhaseOut3)    => TR_out_Q(3),
-        sEnableOut        => TR_out_enable
-
-     );
-				
+inst_shape_Q:	shapingfilter_p8	
+generic map(
+		kInSize  => 8,
+		kOutSize => 8)
+port map(
+		aReset	=> aReset ,
+		Clk		=> pclk_I ,
+		cDin0	   => AD_d0_Q	 ,
+		cDin1      => AD_d1_Q	 ,
+		cDin2	   => AD_d2_Q	 ,
+		cDin3	   => AD_d3_Q  ,
+		cDin4	   => AD_d4_Q	 ,
+		cDin5	   => AD_d5_Q  ,
+		cDin6	   => AD_d6_Q  ,
+		cDin7	   => AD_d7_Q  ,
+		cDout0	 => TR_in_Q(0)   ,
+		cDout1	 => TR_in_Q(1)   ,
+		cDout2	 => TR_in_Q(2)   ,
+		cDout3	 => TR_in_Q(3)   ,
+		cDout4	 => TR_in_Q(4)   ,
+		cDout5	 => TR_in_Q(5)   ,
+		cDout6	 => TR_in_Q(6)   ,
+		cDout7	 => TR_in_Q(7)   
+		);					
 		 
---	----------------------Timer recovery with parallel Gardner algorithm-------------------------start
-				 
---	----------------------Timer recovery with parallel Gardner algorithm-------------------------end
+--	----------------------Timing recovery with parallel Gardner algorithm-------------------------start
+    TimerecoveryP8_v2_inst: TimerecoveryP8_v2 
+        generic map(
+                kDecimateRate   => 13,  -- bit width of Fraction decimate
+                kCountWidth     => 4,   -- bit width of the Counter,it is used in Interpolator.(attention: this parameter must be 4 under 8 parallel condition)
+                kDelay          => 10,   -- delay of the Interpolate Controller.
+                kDataWidth      => 8,
+                kErrorWidth     => 16,
+                kKpSize         => 3,
+                kKiSize         => 3)   -- bit width of the input data.
+        port map(
+                aReset          => aReset,
+                Clk_in          => pclk_I,
+                sEnable         => '1', --TR_in_enable,
+                
+                sDataInPhase0   => signed(TR_in_I(0)),
+                sDataInPhase1   => signed(TR_in_I(1)),
+                sDataInPhase2   => signed(TR_in_I(2)),
+                sDataInPhase3   => signed(TR_in_I(3)),
+                sDataInPhase4   => signed(TR_in_I(4)),
+                sDataInPhase5   => signed(TR_in_I(5)),
+                sDataInPhase6   => signed(TR_in_I(6)),
+                sDataInPhase7   => signed(TR_in_I(7)),
+
+                sDataQuadPhase0   => signed(TR_in_Q(0)),
+                sDataQuadPhase1   => signed(TR_in_Q(1)),
+                sDataQuadPhase2   => signed(TR_in_Q(2)),
+                sDataQuadPhase3   => signed(TR_in_Q(3)),
+                sDataQuadPhase4   => signed(TR_in_Q(4)),
+                sDataQuadPhase5   => signed(TR_in_Q(5)),
+                sDataQuadPhase6   => signed(TR_in_Q(6)),
+                sDataQuadPhase7   => signed(TR_in_Q(7)), 
+                
+                -- recovered symbols
+                std_logic_vector(sInPhaseOut0  )     => TR_out_I(0),
+                std_logic_vector(sInPhaseOut1  )     => TR_out_I(1),
+                std_logic_vector(sInPhaseOut2  )     => TR_out_I(2),
+                std_logic_vector(sInPhaseOut3  )     => TR_out_I(3),
+                std_logic_vector(sQuadPhaseOut0)     => TR_out_Q(0),
+                std_logic_vector(sQuadPhaseOut1)     => TR_out_Q(1),
+                std_logic_vector(sQuadPhaseOut2)     => TR_out_Q(2),
+                std_logic_vector(sQuadPhaseOut3)     => TR_out_Q(3),
+                sEnableOut         => TR_out_enable
+					 );			
+		 
+--	----------------------Timing recovery with parallel Gardner algorithm-------------------------end
 	
 	fifo_in_TR <= TR_out_Q(3)&TR_out_Q(2)&TR_out_I(3)&TR_out_I(2)&TR_out_Q(1)&TR_out_Q(0)&TR_out_I(1)&TR_out_I(0);
 	fifo_4_2_inst: fifo_4_2 
@@ -745,10 +818,11 @@ begin
 --	);
 
 --	---------------Carrier recovery with parallel structure --------start
+	comb_cr_rst <= (aReset or rst_equ);
 	Entity_CR: Carrierrecovery_P2  
 	  generic map(8,12,16)
 	  port map(               
-		aReset            => (aReset or rst_equ),
+		aReset            => comb_cr_rst, --(aReset or rst_equ),
 		Clk               => rclk,
 						
 		-- Input data from timing recovery module
@@ -774,7 +848,7 @@ begin
 	equ_lms_inst :  equ_lms 
 port map( 
 		clk => rclk,
-		rst_n => (aReset or rst_equ),
+		rst_n => comb_cr_rst, --(aReset or rst_equ),
 		en_in => CR_out_enable,
 		jietiaofangshi => "0000",
 		I0_in => CR_out_I(0),
@@ -824,13 +898,14 @@ port map(
 ----
 ------********************************************************************************************************
 
-	
+	comb_diffdcd_i <= not(CREqu_out_I(1)(CREqu_out_I(1)'high)) & not(CREqu_out_I(0)(CREqu_out_I(0)'high));
+	comb_diffdcd_q <= not(CREqu_out_Q(1)(CREqu_out_Q(1)'high)) & not(CREqu_out_Q(0)(CREqu_out_Q(0)'high));
 	Diff_Decoder_P2_inst: Diff_Decoder_P2
     port map(
       aReset          => aReset,
       clk             => rclk,
-      datain_i        => not(CREqu_out_I(1)(CREqu_out_I(1)'high)) & not(CREqu_out_I(0)(CREqu_out_I(0)'high)),
-      datain_q        => not(CREqu_out_Q(1)(CREqu_out_Q(1)'high)) & not(CREqu_out_Q(0)(CREqu_out_Q(0)'high)),
+      datain_i        => comb_diffdcd_i, --not(CREqu_out_I(1)(CREqu_out_I(1)'high)) & not(CREqu_out_I(0)(CREqu_out_I(0)'high)),
+      datain_q        => comb_diffdcd_q, --not(CREqu_out_Q(1)(CREqu_out_Q(1)'high)) & not(CREqu_out_Q(0)(CREqu_out_Q(0)'high)),
 --	   datain_i        => not(CR_out_I(1)(CR_out_I(1)'high)) & not(CR_out_I(0)(CR_out_I(0)'high)),
 --      datain_q        => not(CR_out_Q(1)(CR_out_Q(1)'high)) & not(CR_out_Q(0)(CR_out_Q(0)'high)),
       datain_valid    => CREqu_out_enable,
@@ -995,6 +1070,7 @@ port map(
 --    o_state    => open
 --     );	
 
+comb_headseek <= RSin_data0 & RSin_data1 & RSin_data2 & RSin_data3 & RSin_data4 & RSin_data5 & RSin_data6 & RSin_data7;
 -- Big Endian ??
 Packet_head_seeker_inst : Packet_head_seeker 
 generic map (n_parellel => 8,  -- num of parellel branches
@@ -1003,7 +1079,7 @@ generic map (n_parellel => 8,  -- num of parellel branches
   port map(
   	aReset	=> aReset,
   	clk		=> rclk_half,
-  	d_in	=> RSin_data0 & RSin_data1 & RSin_data2 & RSin_data3 & RSin_data4 & RSin_data5 & RSin_data6 & RSin_data7 ,
+  	d_in	=> comb_headseek, --RSin_data0 & RSin_data1 & RSin_data2 & RSin_data3 & RSin_data4 & RSin_data5 & RSin_data6 & RSin_data7 ,
   	val_in	=> RSin_valid,
 
   	d_out		=> dataout_frame,
@@ -1088,141 +1164,98 @@ generic map (n_parellel => 8,  -- num of parellel branches
 		  );
 
 	
-	ldpc_decoder_inst :	ldpc_decoder        
-	port map(
-		 clk    => rclk,
-		 reset   => aReset,
+	--ldpc_decoder_inst :	ldpc_decoder        
+	--port map(
+	--	 clk    => rclk,
+	--	 reset   => aReset,
 		 
-		 ldpc_in  => data_decode_in,
-		 i_val    => val_decode_in, 
-		 i_sop    => sop_decode_in, 
-		 i_eop    => eop_decode_in, 
+	--	 ldpc_in  => data_decode_in,
+	--	 i_val    => val_decode_in, 
+	--	 i_sop    => sop_decode_in, 
+	--	 i_eop    => eop_decode_in, 
 		 
-		 ldpc_out   => decode_out,
-		 o_val      => decode_out_val,
-		 o_sop      => open,--decode_out_sop,
-		 o_eop      => open,--decode_out_eop,
-		 decode_succeed => open
-		 );
+	--	 ldpc_out   => decode_out,
+	--	 o_val      => decode_out_val,
+	--	 o_sop      => open,--decode_out_sop,
+	--	 o_eop      => open,--decode_out_eop,
+	--	 decode_succeed => open
+	--	 );
 
---------------  de-scrambler ---------------
---        --
---        -- decode_out XOR pn23
---        --
---        pn23_p8_pr : process( rclk, aReset )
---        begin
---          if( aReset = '1' ) then
---            pn23 <= (others => '0');
---          elsif( rising_edge(rclk) ) then
---          	if decode_out_sop='1' or decode_out_eop='1' then
---          		pn23(1) <= '1';
---          		pn23(23 downto 2) <= (others => '0');
---          	elsif decode_out_val_t='1' then
---          		pn23(23 downto 9) <= pn23(15 downto 1);
---				pn23(8 downto 1)  <= pn23(23 downto 16) xor pn23(18 downto 11);
---			else
---				pn23 <= pn23;
---			end if;
---          end if ;
---        end process ; -- pn23_p8_pr
 
---        desramb_pr : process( rclk, aReset )
---        begin
---          if( aReset = '1' ) then
---            decode_out <= (others => '0');
---            decode_out_val <= '0';
---            decode_out_descrm <= (others => '0');
---            decode_out_val_descrm <= '0';
---          elsif( rising_edge(rclk) ) then
---          	decode_out_descrm <= decode_out_t;
---          	decode_out_val_descrm <= decode_out_val_t;
-
---          	decode_out <= decode_out_descrm xor pn23(23 downto 16);
---          	decode_out_val <= decode_out_val_descrm;
---          end if ;
---        end process ; -- desramb_pr
---    ---------------------------------------------------	
 	
+--comb_aclrff8to4 <= ( wrfull_ldpcout or aReset );
+--fifo_ldpcout_8to4_inst: fifo_ldpcout_8to4 
+--	PORT map
+--	(
+--		aclr		=> comb_aclrff8to4, --( wrfull_ldpcout or aReset ),
+--		data		=> decode_out,
+--		rdclk		=> rclk,
+--		rdreq		=> rdreq_ldpcout,
+--		wrclk		=> rclk,
+--		wrreq		=> decode_out_val,
+--		q			=> dat_ldpc_out,
+--		rdempty		=> open,
+--		rdusedw		=> rdusedw_ldpcout,
+--		wrfull		=> wrfull_ldpcout
+--	);
 
-fifo_ldpcout_8to4_inst: fifo_ldpcout_8to4 
-	PORT map
-	(
-		aclr		=> ( wrfull_ldpcout or aReset ),
-		data		=> decode_out,
-		rdclk		=> rclk,
-		rdreq		=> rdreq_ldpcout,
-		wrclk		=> rclk,
-		wrreq		=> decode_out_val,
-		q			=> dat_ldpc_out,
-		rdempty		=> open,
-		rdusedw		=> rdusedw_ldpcout,
-		wrfull		=> wrfull_ldpcout
-	);
+--	rdreq_ldpcout_pr : process( rclk, aReset )
+--	begin
+--	  if( aReset = '1' ) then
+--	    rdreq_ldpcout <= '0';
+--	    val_ldpc_out <= '0';
+--	  elsif( rising_edge(rclk) ) then
+--	  	if unsigned(rdusedw_ldpcout) >= to_unsigned(64,12) then
+--	  		rdreq_ldpcout <= '1' ;
+--	  	else
+--	  		rdreq_ldpcout <= '0';
+--	  	end if;
+--	  	val_ldpc_out <= rdreq_ldpcout;
+--	  end if ;
+--	end process ; -- rdreq_ldpcout_pr
 
-	rdreq_ldpcout_pr : process( rclk, aReset )
-	begin
-	  if( aReset = '1' ) then
-	    rdreq_ldpcout <= '0';
-	    val_ldpc_out <= '0';
-	  elsif( rising_edge(rclk) ) then
-	  	if unsigned(rdusedw_ldpcout) >= to_unsigned(64,12) then
-	  		rdreq_ldpcout <= '1' ;
-	  	else
-	  		rdreq_ldpcout <= '0';
-	  	end if;
-	  	val_ldpc_out <= rdreq_ldpcout;
-	  end if ;
-	end process ; -- rdreq_ldpcout_pr
+--	MUX_to_out : process( rclk, aReset )
+--	begin
+--	  if( aReset = '1' ) then
+--	    dat_mux <= (others => '0');
+--	    val_mux <= '0';		
+--	  elsif( rising_edge(rclk) ) then
+--	  	if with_LDPC = '1' then
+--	  		dat_mux <= dat_ldpc_out;
+--	  		val_mux <= val_ldpc_out;
+--	  	else
+--	  		dat_mux <= cDataQuad_DiffDec(1) & cDataIn_DiffDec(1) & cDataQuad_DiffDec(0) & cDataIn_DiffDec(0);
+--	  		val_mux <= cEnable_DiffDec;
+--	  	end if;
+--	  end if ;
+--	end process ; -- MUX_to_out
 
-	MUX_to_out : process( rclk, aReset )
-	begin
-	  if( aReset = '1' ) then
-	    dat_mux <= (others => '0');
-	    val_mux <= '0';		
-	  elsif( rising_edge(rclk) ) then
-	  	if with_LDPC = '1' then
-	  		dat_mux <= dat_ldpc_out;
-	  		val_mux <= val_ldpc_out;
-	  	else
-	  		dat_mux <= cDataQuad_DiffDec(1) & cDataIn_DiffDec(1) & cDataQuad_DiffDec(0) & cDataIn_DiffDec(0);
-	  		val_mux <= cEnable_DiffDec;
-	  	end if;
-	  end if ;
-	end process ; -- MUX_to_out
+--	PN_ERR_Detect_inst_Q0: PN_ERR_Detect 
+--		 PORT map
+--		(
+--		   aReset	=> aReset,
+--		   ClockIn  => rclk,
+--		   Enable	=> decode_out_val,
+--		   DataIn	=> decode_out(1),
+--		   SyncFlag => open,
+--	       Error    => open,
+--		   ErrResult => open
+--		);
+--	PN_ERR_Detect_inst_Q1: PN_ERR_Detect 
+--		 PORT map
+--		(
+--		   aReset	=> aReset,
+--		   ClockIn  => rclk,
+--		   Enable	=> decode_out_val,
+--		   DataIn	=> decode_out(4),
+--		   SyncFlag => open,
+--	       Error    => open,
+--		   ErrResult => open
+--		);
 
-	--ddio_toF2_inst: ddio_toF2 
-	--PORT map
-	--(
-	--	aclr		=> aReset,
-	--	datain_h		=> ( '1' & val_mux & dat_mux(3) & dat_mux(2) & dat_mux(1) & dat_mux(0) ),
-	--	datain_l		=> ( '0' & val_mux & dat_mux(3) & dat_mux(2) & dat_mux(1) & dat_mux(0) ),
-	--	outclock		=> rclk,
-	--	dataout		=> d_toFPGA2
-	--);
-
-
-	PN_ERR_Detect_inst_Q0: PN_ERR_Detect 
-		 PORT map
-		(
-		   aReset	=> aReset,
-		   ClockIn  => rclk,
-		   Enable	=> decode_out_val,
-		   DataIn	=> decode_out(1),
-		   SyncFlag => open,
-	       Error    => open,
-		   ErrResult => open
-		);
-	PN_ERR_Detect_inst_Q1: PN_ERR_Detect 
-		 PORT map
-		(
-		   aReset	=> aReset,
-		   ClockIn  => rclk,
-		   Enable	=> decode_out_val,
-		   DataIn	=> decode_out(4),
-		   SyncFlag => open,
-	       Error    => open,
-		   ErrResult => open
-		);
+dat_mux <= (others => '0');
+val_mux <= '0';
 	
 
 end rtl;
+

@@ -44,6 +44,8 @@ begin
 					constell_rec_0 <= to_unsigned(2,2);
 				when "10" =>
 					constell_rec_0 <= to_unsigned(3,2);
+				when others =>
+					null;
 			end case;
 		else
 			null;
@@ -69,6 +71,8 @@ begin
 					constell_rec_1 <= to_unsigned(2,2);
 				when "10" =>
 					constell_rec_1 <= to_unsigned(3,2);
+				when others =>
+					null;
 			end case;
 			constell_rec_1_dly <= constell_rec_1;
 		else
