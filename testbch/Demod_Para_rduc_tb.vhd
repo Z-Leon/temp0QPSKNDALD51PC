@@ -106,7 +106,7 @@ begin
 
   ReadData: process(aReset, pclk_I)
             
-           file infile : text  open read_mode is "E:\work_jl\c_s54\pj051\code\temp\201512\pinglc_QPSK_LDPC_v2.5_IF300_600_pj051_GH\source\Matlab\Mod_add_offset.txt";
+           file infile : text  open read_mode is "e:\work_jl\c_s54\pj051\code\temp\201512\pinglc_QPSK_LDPC_v2.5_IF300_600_pj051_GH\modelsim\MatlabFiles\Mod_add_offset.txt";
             variable dl : line;
             variable f_I0_in, f_Q0_in, f_I1_in, f_Q1_in : integer;
             begin

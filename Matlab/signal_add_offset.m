@@ -1,7 +1,7 @@
 clear;
 close all;
 %% 设定参数
-a = load('Mod_out_p8.txt');
+a = load('e:\work_jl\c_s54\pj051\code\temp\201512\pinglc_QPSK_LDPC_v2.5_IF300_600_pj051_GH\modelsim\MatlabFiles\Mod_out_p8.txt');
 %   I    Q
 %   p0   p0
 %   p1   p1
@@ -51,7 +51,7 @@ sI_add = round(sI_resmp/64);
 sQ_add = round(sQ_resmp/64);
 
 % Write to file
-fileID = fopen('Mod_add_offset.txt','w');
+fileID = fopen('e:\work_jl\c_s54\pj051\code\temp\201512\pinglc_QPSK_LDPC_v2.5_IF300_600_pj051_GH\modelsim\MatlabFiles\Mod_add_offset.txt','w');
 for k=1:(8*floor(length(sI_resmp)/8))
 fprintf(fileID,'%14d  %14d\n',sI_add(k), sQ_add(k));
 end

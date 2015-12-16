@@ -109,9 +109,11 @@ end generate;
 -- NXOR    or say correlaiton
 -----------------------------------
 bank3: for i in 0 to n_parellel-1 generate
-process(clk)
+process(aReset, clk)
 begin
-  if rising_edge(clk) then
+if aReset = '1'  then
+  nxor_d_reg(i) <= (others => '0');
+elsif rising_edge(clk) then
   if val_in = '1' then
     nxor_d_reg(i) <= d_reg_wire(i) xnor pkt_head;
   end if;
@@ -483,7 +485,7 @@ end process ;
     if val_in = '1' then
         if tmp_sop_out = '1'  then
           sop_out_cnt <= 1;
-        elsif sop_out_cnt /= 0 then
+        elsif sop_out_cnt /= 0 and sop_out_cnt /= 1023 then
           sop_out_cnt <= sop_out_cnt + 1;
         else
           sop_out_cnt <= 0;

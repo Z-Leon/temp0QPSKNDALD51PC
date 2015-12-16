@@ -136,9 +136,7 @@ port map(
 
 
     RecordShpingData:process (aReset,clk_50)
-       --     file WriteFile : text open write_mode is "D:\result_6.txt";
-       
-            file WriteFile : text  is out  "..\..\source\Matlab\Mod_out_p8.txt";
+            file WriteFile : text  open write_mode is  "e:\work_jl\c_s54\pj051\code\temp\201512\pinglc_QPSK_LDPC_v2.5_IF300_600_pj051_GH\modelsim\MatlabFiles\Mod_out_p8.txt";
             variable DataLine : line;
             variable WriteData_I : integer;
             variable WriteData_Q : integer;
