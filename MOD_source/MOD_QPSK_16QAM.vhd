@@ -488,8 +488,14 @@ signal ddio_wren_reg : std_logic;
 signal ddio_din_reg : std_logic_vector(3 downto 0) ;
 signal wrusedw_preLDPC : std_logic_vector(10 downto 0) ;
 signal rdusedw_preLDPC : std_logic_vector(9 downto 0) ;
-	signal rdreq_start : std_logic;
-
+signal rdreq_start : std_logic;
+signal comb_P8toP4_bit : std_logic_vector(7 downto 0) ;
+signal comb_diff_code_p2_i, comb_diff_code_p2_q : std_logic_vector(1 downto 0) ;
+signal comb_mapping_QPSK : std_logic_vector(3 downto 0) ;
+signal rden_fifo_notLDPC : std_logic;
+signal rdusedw_fifo_notLDPC		:  STD_LOGIC_VECTOR (9 DOWNTO 0);
+signal  aclr_ff_preLDPC_4to8 : std_logic;
+signal  with_LDPC_r : std_logic_vector(2 downto 0) ; 
 
 begin
 
@@ -500,21 +506,32 @@ fifo_preLDPC_inst: fifo_preLDPC
 		aclr		=> aReset,
 		data		=> ddio_din, --data_in_l(3 downto 0),
 		rdclk		=> clk_50,
-		rdreq		=> '1',
+		rdreq		=> rden_fifo_notLDPC,
 		wrclk		=> ddio_clk, --data_in(5),
 		wrreq		=> ddio_wren, --data_in_l(4),
 		q		   	=> d_from_GE,
 		rdempty		=> open,--rdempty_preL,
-		rdusedw		=> open,
+		rdusedw		=> rdusedw_fifo_notLDPC,
 		wrfull		=> open --wrfull_preL
 	);
 
---aclr_preL <= aReset; --wrfull_preL or aReset;
+	process( aReset, clk_50)
+	begin
+		if aReset='1' then
+			rden_fifo_notLDPC <= '0';
+		elsif rising_edge(clk_50) then	
+				if unsigned(rdusedw_fifo_notLDPC) >= to_unsigned(16, rdusedw_fifo_notLDPC'length) then
+					rden_fifo_notLDPC <= '1';
+				else
+					rden_fifo_notLDPC <= '0';
+				end if;
+		end if;
+	end process;
 
 fifo_preLDPC_4to8_inst: fifo_preLDPC_4to8 
 	PORT map
 	(
-		aclr		=> aReset,
+		aclr		=> aclr_ff_preLDPC_4to8,
 		data		=> ddio_din, --data_in_l(3 downto 0),
 		rdclk		=> clk_25,
 		rdreq		=> pre_fifo_rden_4to8,
@@ -528,29 +545,22 @@ fifo_preLDPC_4to8_inst: fifo_preLDPC_4to8
 
 	);
 
-	--process( aReset, clk_25)
-	--begin
-	--	if aReset='1' then
-	--		rdreq_start <= '0';
-	--		pre_fifo_rden_4to8 <= '0';
-	--	elsif rising_edge(clk_25) then	
-	--		if unsigned(rdusedw_preLDPC) < to_unsigned(4, rdusedw_preLDPC'length) then
-	--			pre_fifo_rden_4to8 <= '0';
-	--			rdreq_start <= '0';
-	--		elsif  rdreq_start='0' then
-	--			if unsigned(rdusedw_preLDPC) >= to_unsigned(256, rdusedw_preLDPC'length) then
-	--				rdreq_start <= '1';
-	--				pre_fifo_rden_4to8 <= pre_fifo_rden;
-	--			else
-	--				rdreq_start <= '0';
-	--				pre_fifo_rden_4to8 <= '0';
-	--			end if;
-	--		else
-	--			pre_fifo_rden_4to8 <= pre_fifo_rden;
-	--			rdreq_start <= rdreq_start;
-	--		end if;
-	--	end if;
-	--end process;
+	-- identifier
+	process( clk_25, aReset )
+	begin
+	  if( aReset = '1' ) then
+	    --with_LDPC_r <= (others => '0');
+	    aclr_ff_preLDPC_4to8 <= '1' ;
+	  elsif( rising_edge(clk_25) ) then
+	  	--with_LDPC_r(2 downto 1) <= with_LDPC_r(1 downto 0);
+	  	--with_LDPC_r(0) <= with_LDPC;
+	  	if unsigned(rdusedw_preLDPC) >= to_unsigned(996, rdusedw_preLDPC'length) then
+	  		aclr_ff_preLDPC_4to8 <= '1' ;
+	  	else
+	  		aclr_ff_preLDPC_4to8 <= '0' ;
+	  	end if;
+	  end if ;
+	end process ;
 
 	process( aReset, clk_25)
 	begin
@@ -582,12 +592,13 @@ fifo_preLDPC_4to8_inst: fifo_preLDPC_4to8
 	 );
 
 
+comb_P8toP4_bit <= d_LDPC_out(0) & d_LDPC_out(1) & d_LDPC_out(2) & d_LDPC_out(3) & d_LDPC_out(4) & d_LDPC_out(5) & d_LDPC_out(6) & d_LDPC_out(7);
 P8toP4_bit_inst:	P8toP4_bit	
 port map(
 		aReset	=> aReset,
 		clk_in		=> clk_25,
 		clk_out		=> clk_50,
-		data_in		=> d_LDPC_out(0) & d_LDPC_out(1) & d_LDPC_out(2) & d_LDPC_out(3) & d_LDPC_out(4) & d_LDPC_out(5) & d_LDPC_out(6) & d_LDPC_out(7),
+		data_in		=> comb_P8toP4_bit,
 		valid_in		=> '1',
 
 		data_out		=> d_LDPC_out_P4,
@@ -610,18 +621,20 @@ begin
   		d_not_LDPC <= d_from_GE;
   	else 
   		d_not_LDPC <= PN_Dataout_4;
+  		--d_not_LDPC <= std_logic_vector(unsigned(d_not_LDPC)+1);
   	end if;
   end if ;
 end process ; -- d_src_GEorSELF
 
 
- 
+ comb_diff_code_p2_i <= d_not_LDPC(2) & d_not_LDPC(0);
+ comb_diff_code_p2_q <= d_not_LDPC(3) & d_not_LDPC(1);
 inst_diff_code: diff_code_p2 
 port map(
       aReset          => aReset ,
       clk             => clk_50 ,
-      datain_i        => d_not_LDPC(2) & d_not_LDPC(0) ,
-      datain_q        => d_not_LDPC(3) & d_not_LDPC(1) , 
+      datain_i        => comb_diff_code_p2_i ,
+      datain_q        => comb_diff_code_p2_q, 
      
       dataout_i       => diff_code_dataout_i ,
       dataout_q       => diff_code_dataout_q
@@ -641,6 +654,7 @@ begin
 	end if;
 end process;		
 
+comb_mapping_QPSK <= PN_LDPC_out_q(0) & PN_LDPC_out_i(0) & PN_LDPC_out_q(1) & PN_LDPC_out_i(1);
 mapping_QPSK_inst_155 : mapping_QPSK 
 generic map(14)
 port map(
@@ -648,7 +662,7 @@ port map(
 		clk 	=> clk_50,
 		val_in => '1',
 		--datain 	=> PN_Dataout_4(0) & PN_Dataout_4(1) & PN_Dataout_4(2) & PN_Dataout_4(3),
-		datain 	=> PN_LDPC_out_q(0) & PN_LDPC_out_i(0) & PN_LDPC_out_q(1) & PN_LDPC_out_i(1),
+		datain 	=> comb_mapping_QPSK,
 		dataout_I0 => data_mapping_I0_155,
 		dataout_Q0 => data_mapping_Q0_155,
 		dataout_I1 => data_mapping_I1_155,

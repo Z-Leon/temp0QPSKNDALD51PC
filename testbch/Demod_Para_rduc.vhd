@@ -900,20 +900,19 @@ port map(
 
 	comb_diffdcd_i <= not(CREqu_out_I(1)(CREqu_out_I(1)'high)) & not(CREqu_out_I(0)(CREqu_out_I(0)'high));
 	comb_diffdcd_q <= not(CREqu_out_Q(1)(CREqu_out_Q(1)'high)) & not(CREqu_out_Q(0)(CREqu_out_Q(0)'high));
-	Diff_Decoder_P2_inst: Diff_Decoder_P2
+	Diff_Decoder_P2_inst: Diff_Decoder_P2  
     port map(
       aReset          => aReset,
       clk             => rclk,
       datain_i        => comb_diffdcd_i, --not(CREqu_out_I(1)(CREqu_out_I(1)'high)) & not(CREqu_out_I(0)(CREqu_out_I(0)'high)),
       datain_q        => comb_diffdcd_q, --not(CREqu_out_Q(1)(CREqu_out_Q(1)'high)) & not(CREqu_out_Q(0)(CREqu_out_Q(0)'high)),
---	   datain_i        => not(CR_out_I(1)(CR_out_I(1)'high)) & not(CR_out_I(0)(CR_out_I(0)'high)),
---      datain_q        => not(CR_out_Q(1)(CR_out_Q(1)'high)) & not(CR_out_Q(0)(CR_out_Q(0)'high)),
       datain_valid    => CREqu_out_enable,
       
       dataout_i       => cDataIn_DiffDec,
       dataout_q       => cDataQuad_DiffDec,
       dataout_valid   => cEnable_DiffDec              
      );
+    -- Output serial wire seq : first i0, q0, i1, q1 last
 
     	PN_ERR_Detect_inst_I1: PN_ERR_Detect 
 		 PORT map
@@ -1124,7 +1123,7 @@ generic map (n_parellel => 8,  -- num of parellel branches
 	  		phase_change <= '0';
 	  	end if;
 
-	  	if cnt_sop_frame_2 = 65535 then
+	  	if cnt_sop_frame_2 = 65535 and with_LDPC = '1' then
 	  		rst_equ <= '1';
 	  	else
 	  		rst_equ <= '0';
@@ -1253,8 +1252,8 @@ generic map (n_parellel => 8,  -- num of parellel branches
 --		   ErrResult => open
 --		);
 
-dat_mux <= (others => '0');
-val_mux <= '0';
+	  		dat_mux <= cDataQuad_DiffDec(1) & cDataIn_DiffDec(1) & cDataQuad_DiffDec(0) & cDataIn_DiffDec(0);
+	  		val_mux <= cEnable_DiffDec;
 	
 
 end rtl;

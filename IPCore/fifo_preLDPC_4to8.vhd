@@ -119,7 +119,7 @@ BEGIN
 		lpm_width_r => 8,
 		overflow_checking => "ON",
 		rdsync_delaypipe => 5,
-		read_aclr_synch => "OFF",
+		read_aclr_synch => "ON",
 		underflow_checking => "ON",
 		use_eab => "ON",
 		write_aclr_synch => "OFF",
@@ -189,7 +189,7 @@ END SYN;
 -- Retrieval info: CONSTANT: LPM_WIDTH_R NUMERIC "8"
 -- Retrieval info: CONSTANT: OVERFLOW_CHECKING STRING "ON"
 -- Retrieval info: CONSTANT: RDSYNC_DELAYPIPE NUMERIC "5"
--- Retrieval info: CONSTANT: READ_ACLR_SYNCH STRING "OFF"
+-- Retrieval info: CONSTANT: READ_ACLR_SYNCH STRING "ON"
 -- Retrieval info: CONSTANT: UNDERFLOW_CHECKING STRING "ON"
 -- Retrieval info: CONSTANT: USE_EAB STRING "ON"
 -- Retrieval info: CONSTANT: WRITE_ACLR_SYNCH STRING "OFF"

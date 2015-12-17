@@ -52,7 +52,7 @@ end component;
 	signal clk_50	:  std_logic;
 	--signal clk_150	:  std_logic;
 	signal ddio_clk :  std_logic;  -- 100MHz ?
-	signal ddio_din :  std_logic_vector(3 downto 0) ;
+	signal ddio_din :  std_logic_vector(3 downto 0) := "0000" ;
 	signal ddio_wren :  std_logic;
 	signal d_src_is_GE :  std_logic;
 	signal with_LDPC 	:  std_logic;
@@ -85,8 +85,8 @@ port map(
 		ddio_clk 		=> ddio_clk ,
 		ddio_din 		=> ddio_din ,
 		ddio_wren 		=> ddio_wren ,
-		d_src_is_GE 	=> '0' ,
-		with_LDPC 		=> '1' ,
+		d_src_is_GE 	=> '1' ,
+		with_LDPC 		=> '0' ,
 		d_out_shp_I0	=> d_out_shp_I0,
 		d_out_shp_I1	=> d_out_shp_I1,
 		d_out_shp_I2	=> d_out_shp_I2,
@@ -129,8 +129,24 @@ port map(
     wait for 5 ns;
   end process;
 
-  ddio_din <= (others => '0');
-  ddio_wren <= '0' ;
+  process
+  begin
+    ddio_wren <= '0';
+    wait for 10 ns;
+    ddio_wren <= '1';
+    wait for 10 ns;
+  end process;
+
+  process
+  begin
+    ddio_din <= ddio_din;
+    wait for 10 ns;
+    ddio_din <= std_logic_vector(unsigned(ddio_din)+1);
+    wait for 10 ns;
+  end process;
+
+  --ddio_din <= (others => '0');
+  --ddio_wren <= '0' ;
 
   aReset <= '0', '1' after 5 ns,'0' after 100 ns;
 

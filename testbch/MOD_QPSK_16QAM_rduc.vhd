@@ -497,7 +497,10 @@ signal rdreq_start : std_logic;
 signal comb_P8toP4_bit : std_logic_vector(7 downto 0) ;
 signal comb_diff_code_p2_i, comb_diff_code_p2_q : std_logic_vector(1 downto 0) ;
 signal comb_mapping_QPSK : std_logic_vector(3 downto 0) ;
-
+signal rden_fifo_notLDPC : std_logic;
+signal rdusedw_fifo_notLDPC		:  STD_LOGIC_VECTOR (9 DOWNTO 0);
+signal  aclr_ff_preLDPC_4to8 : std_logic;
+signal  with_LDPC_r : std_logic_vector(2 downto 0) ; 
 
 begin
 
@@ -508,21 +511,32 @@ fifo_preLDPC_inst: fifo_preLDPC
 		aclr		=> aReset,
 		data		=> ddio_din, --data_in_l(3 downto 0),
 		rdclk		=> clk_50,
-		rdreq		=> '1',
+		rdreq		=> rden_fifo_notLDPC,
 		wrclk		=> ddio_clk, --data_in(5),
 		wrreq		=> ddio_wren, --data_in_l(4),
 		q		   	=> d_from_GE,
 		rdempty		=> open,--rdempty_preL,
-		rdusedw		=> open,
+		rdusedw		=> rdusedw_fifo_notLDPC,
 		wrfull		=> open --wrfull_preL
 	);
 
---aclr_preL <= aReset; --wrfull_preL or aReset;
+	process( aReset, clk_50)
+	begin
+		if aReset='1' then
+			rden_fifo_notLDPC <= '0';
+		elsif rising_edge(clk_50) then	
+				if unsigned(rdusedw_fifo_notLDPC) >= to_unsigned(16, rdusedw_fifo_notLDPC'length) then
+					rden_fifo_notLDPC <= '1';
+				else
+					rden_fifo_notLDPC <= '0';
+				end if;
+		end if;
+	end process;
 
 fifo_preLDPC_4to8_inst: fifo_preLDPC_4to8 
 	PORT map
 	(
-		aclr		=> aReset,
+		aclr		=> aclr_ff_preLDPC_4to8,
 		data		=> ddio_din, --data_in_l(3 downto 0),
 		rdclk		=> clk_25,
 		rdreq		=> pre_fifo_rden_4to8,
@@ -536,29 +550,22 @@ fifo_preLDPC_4to8_inst: fifo_preLDPC_4to8
 
 	);
 
-	--process( aReset, clk_25)
-	--begin
-	--	if aReset='1' then
-	--		rdreq_start <= '0';
-	--		pre_fifo_rden_4to8 <= '0';
-	--	elsif rising_edge(clk_25) then	
-	--		if unsigned(rdusedw_preLDPC) < to_unsigned(4, rdusedw_preLDPC'length) then
-	--			pre_fifo_rden_4to8 <= '0';
-	--			rdreq_start <= '0';
-	--		elsif  rdreq_start='0' then
-	--			if unsigned(rdusedw_preLDPC) >= to_unsigned(256, rdusedw_preLDPC'length) then
-	--				rdreq_start <= '1';
-	--				pre_fifo_rden_4to8 <= pre_fifo_rden;
-	--			else
-	--				rdreq_start <= '0';
-	--				pre_fifo_rden_4to8 <= '0';
-	--			end if;
-	--		else
-	--			pre_fifo_rden_4to8 <= pre_fifo_rden;
-	--			rdreq_start <= rdreq_start;
-	--		end if;
-	--	end if;
-	--end process;
+	-- identifier
+	process( clk_25, aReset )
+	begin
+	  if( aReset = '1' ) then
+	    --with_LDPC_r <= (others => '0');
+	    aclr_ff_preLDPC_4to8 <= '1' ;
+	  elsif( rising_edge(clk_25) ) then
+	  	--with_LDPC_r(2 downto 1) <= with_LDPC_r(1 downto 0);
+	  	--with_LDPC_r(0) <= with_LDPC;
+	  	if unsigned(rdusedw_preLDPC) >= to_unsigned(996, rdusedw_preLDPC'length) then
+	  		aclr_ff_preLDPC_4to8 <= '1' ;
+	  	else
+	  		aclr_ff_preLDPC_4to8 <= '0' ;
+	  	end if;
+	  end if ;
+	end process ;
 
 	process( aReset, clk_25)
 	begin
@@ -619,6 +626,7 @@ begin
   		d_not_LDPC <= d_from_GE;
   	else 
   		d_not_LDPC <= PN_Dataout_4;
+  		--d_not_LDPC <= std_logic_vector(unsigned(d_not_LDPC)+1);
   	end if;
   end if ;
 end process ; -- d_src_GEorSELF
@@ -736,3 +744,4 @@ d_out_shp_Q7 <= data_shaping_Q7_155;
 
 
 end rtl;
+

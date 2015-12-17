@@ -100,7 +100,7 @@ begin
     wait for 20 ns;
   end process;
 
-  with_LDPC <= '1' ;
+  with_LDPC <= '0' ;
 
   aReset <= '0', '1' after 5 ns,'0' after 200 ns;
 

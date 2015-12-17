@@ -664,6 +664,10 @@ signal phase_change, rst_equ : std_logic;
     signal val_frame_2    :  std_logic;  
     signal eop_frame_2    :  std_logic;
 
+    signal comb_cr_rst : std_logic;
+	signal comb_diffdcd_i, comb_diffdcd_q : std_logic_vector(1 downto 0) ;
+	signal comb_headseek : std_logic_vector(31 downto 0) ;
+	signal comb_aclrff8to4 : std_logic;
 	--------------------------signal define(end)------------------------------
 begin	
 	
@@ -745,10 +749,11 @@ begin
 --	);
 
 --	---------------Carrier recovery with parallel structure --------start
+	comb_cr_rst <= (aReset or rst_equ);
 	Entity_CR: Carrierrecovery_P2  
 	  generic map(8,12,16)
 	  port map(               
-		aReset            => (aReset or rst_equ),
+		aReset            => comb_cr_rst, --(aReset or rst_equ),
 		Clk               => rclk,
 						
 		-- Input data from timing recovery module
@@ -774,7 +779,7 @@ begin
 	equ_lms_inst :  equ_lms 
 port map( 
 		clk => rclk,
-		rst_n => (aReset or rst_equ),
+		rst_n => comb_cr_rst, --(aReset or rst_equ),
 		en_in => CR_out_enable,
 		jietiaofangshi => "0000",
 		I0_in => CR_out_I(0),
@@ -824,21 +829,21 @@ port map(
 ----
 ------********************************************************************************************************
 
-	
-	Diff_Decoder_P2_inst: Diff_Decoder_P2
+	comb_diffdcd_i <= not(CREqu_out_I(1)(CREqu_out_I(1)'high)) & not(CREqu_out_I(0)(CREqu_out_I(0)'high));
+	comb_diffdcd_q <= not(CREqu_out_Q(1)(CREqu_out_Q(1)'high)) & not(CREqu_out_Q(0)(CREqu_out_Q(0)'high));
+	Diff_Decoder_P2_inst: Diff_Decoder_P2  
     port map(
       aReset          => aReset,
       clk             => rclk,
-      datain_i        => not(CREqu_out_I(1)(CREqu_out_I(1)'high)) & not(CREqu_out_I(0)(CREqu_out_I(0)'high)),
-      datain_q        => not(CREqu_out_Q(1)(CREqu_out_Q(1)'high)) & not(CREqu_out_Q(0)(CREqu_out_Q(0)'high)),
---	   datain_i        => not(CR_out_I(1)(CR_out_I(1)'high)) & not(CR_out_I(0)(CR_out_I(0)'high)),
---      datain_q        => not(CR_out_Q(1)(CR_out_Q(1)'high)) & not(CR_out_Q(0)(CR_out_Q(0)'high)),
+      datain_i        => comb_diffdcd_i, --not(CREqu_out_I(1)(CREqu_out_I(1)'high)) & not(CREqu_out_I(0)(CREqu_out_I(0)'high)),
+      datain_q        => comb_diffdcd_q, --not(CREqu_out_Q(1)(CREqu_out_Q(1)'high)) & not(CREqu_out_Q(0)(CREqu_out_Q(0)'high)),
       datain_valid    => CREqu_out_enable,
       
       dataout_i       => cDataIn_DiffDec,
       dataout_q       => cDataQuad_DiffDec,
       dataout_valid   => cEnable_DiffDec              
      );
+    -- Output serial wire seq : first i0, q0, i1, q1 last
 
     	PN_ERR_Detect_inst_I1: PN_ERR_Detect 
 		 PORT map
@@ -995,6 +1000,7 @@ port map(
 --    o_state    => open
 --     );	
 
+comb_headseek <= RSin_data0 & RSin_data1 & RSin_data2 & RSin_data3 & RSin_data4 & RSin_data5 & RSin_data6 & RSin_data7;
 -- Big Endian ??
 Packet_head_seeker_inst : Packet_head_seeker 
 generic map (n_parellel => 8,  -- num of parellel branches
@@ -1003,7 +1009,7 @@ generic map (n_parellel => 8,  -- num of parellel branches
   port map(
   	aReset	=> aReset,
   	clk		=> rclk_half,
-  	d_in	=> RSin_data0 & RSin_data1 & RSin_data2 & RSin_data3 & RSin_data4 & RSin_data5 & RSin_data6 & RSin_data7 ,
+  	d_in	=> comb_headseek, --RSin_data0 & RSin_data1 & RSin_data2 & RSin_data3 & RSin_data4 & RSin_data5 & RSin_data6 & RSin_data7 ,
   	val_in	=> RSin_valid,
 
   	d_out		=> dataout_frame,
@@ -1048,7 +1054,7 @@ generic map (n_parellel => 8,  -- num of parellel branches
 	  		phase_change <= '0';
 	  	end if;
 
-	  	if cnt_sop_frame_2 = 65535 then
+	  	if cnt_sop_frame_2 = 65535 and with_LDPC = '1' then
 	  		rst_equ <= '1';
 	  	else
 	  		rst_equ <= '0';
