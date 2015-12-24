@@ -207,25 +207,25 @@ component RSSI_p4 is
   aReset  : in std_logic;
   clk     : in std_logic;
 
-	d_in_I0  : in std_logic_vector(kInSize-1 downto 0);
-  d_in_I1  : in std_logic_vector(kInSize-1 downto 0);
-  d_in_I2  : in std_logic_vector(kInSize-1 downto 0);
-  d_in_I3  : in std_logic_vector(kInSize-1 downto 0);
-  d_in_I4  : in std_logic_vector(kInSize-1 downto 0);
-  d_in_I5  : in std_logic_vector(kInSize-1 downto 0);
-  d_in_I6  : in std_logic_vector(kInSize-1 downto 0);
-  d_in_I7  : in std_logic_vector(kInSize-1 downto 0);
-  d_in_Q0  : in std_logic_vector(kInSize-1 downto 0);
-  d_in_Q1  : in std_logic_vector(kInSize-1 downto 0);
-  d_in_Q2  : in std_logic_vector(kInSize-1 downto 0);
-  d_in_Q3  : in std_logic_vector(kInSize-1 downto 0);
-  d_in_Q4  : in std_logic_vector(kInSize-1 downto 0);
-  d_in_Q5  : in std_logic_vector(kInSize-1 downto 0);
-  d_in_Q6  : in std_logic_vector(kInSize-1 downto 0);
-  d_in_Q7  : in std_logic_vector(kInSize-1 downto 0);
-  val_in   : in std_logic;
+  d_in_I0  : std_logic_vector(kInSize-1 downto 0);
+  d_in_I1  : std_logic_vector(kInSize-1 downto 0);
+  d_in_I2  : std_logic_vector(kInSize-1 downto 0);
+  d_in_I3  : std_logic_vector(kInSize-1 downto 0);
+  d_in_I4  : std_logic_vector(kInSize-1 downto 0);
+  d_in_I5  : std_logic_vector(kInSize-1 downto 0);
+  d_in_I6  : std_logic_vector(kInSize-1 downto 0);
+  d_in_I7  : std_logic_vector(kInSize-1 downto 0);
+  d_in_Q0  : std_logic_vector(kInSize-1 downto 0);
+  d_in_Q1  : std_logic_vector(kInSize-1 downto 0);
+  d_in_Q2  : std_logic_vector(kInSize-1 downto 0);
+  d_in_Q3  : std_logic_vector(kInSize-1 downto 0);
+  d_in_Q4  : std_logic_vector(kInSize-1 downto 0);
+  d_in_Q5  : std_logic_vector(kInSize-1 downto 0);
+  d_in_Q6  : std_logic_vector(kInSize-1 downto 0);
+  d_in_Q7  : std_logic_vector(kInSize-1 downto 0);
+  val_in   : std_logic
 
-  rssi_out  : out std_logic_vector(kOutsize-1 downto 0)
+  rssi_out  : std_logic_vector(kOutsize-1 downto 0)
 
 
   );

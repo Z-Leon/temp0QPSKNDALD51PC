@@ -14,25 +14,25 @@ entity RSSI_p4 is
   aReset  : in std_logic;
   clk     : in std_logic;
 
-  d_in_I0  : in std_logic_vector(kInSize-1 downto 0);
-  d_in_I1  : in std_logic_vector(kInSize-1 downto 0);
-  d_in_I2  : in std_logic_vector(kInSize-1 downto 0);
-  d_in_I3  : in std_logic_vector(kInSize-1 downto 0);
-  d_in_I4  : in std_logic_vector(kInSize-1 downto 0);
-  d_in_I5  : in std_logic_vector(kInSize-1 downto 0);
-  d_in_I6  : in std_logic_vector(kInSize-1 downto 0);
-  d_in_I7  : in std_logic_vector(kInSize-1 downto 0);
-  d_in_Q0  : in std_logic_vector(kInSize-1 downto 0);
-  d_in_Q1  : in std_logic_vector(kInSize-1 downto 0);
-  d_in_Q2  : in std_logic_vector(kInSize-1 downto 0);
-  d_in_Q3  : in std_logic_vector(kInSize-1 downto 0);
-  d_in_Q4  : in std_logic_vector(kInSize-1 downto 0);
-  d_in_Q5  : in std_logic_vector(kInSize-1 downto 0);
-  d_in_Q6  : in std_logic_vector(kInSize-1 downto 0);
-  d_in_Q7  : in std_logic_vector(kInSize-1 downto 0);
-  val_in   : in std_logic;
+  d_in_I0  : std_logic_vector(kInSize-1 downto 0);
+  d_in_I1  : std_logic_vector(kInSize-1 downto 0);
+  d_in_I2  : std_logic_vector(kInSize-1 downto 0);
+  d_in_I3  : std_logic_vector(kInSize-1 downto 0);
+  d_in_I4  : std_logic_vector(kInSize-1 downto 0);
+  d_in_I5  : std_logic_vector(kInSize-1 downto 0);
+  d_in_I6  : std_logic_vector(kInSize-1 downto 0);
+  d_in_I7  : std_logic_vector(kInSize-1 downto 0);
+  d_in_Q0  : std_logic_vector(kInSize-1 downto 0);
+  d_in_Q1  : std_logic_vector(kInSize-1 downto 0);
+  d_in_Q2  : std_logic_vector(kInSize-1 downto 0);
+  d_in_Q3  : std_logic_vector(kInSize-1 downto 0);
+  d_in_Q4  : std_logic_vector(kInSize-1 downto 0);
+  d_in_Q5  : std_logic_vector(kInSize-1 downto 0);
+  d_in_Q6  : std_logic_vector(kInSize-1 downto 0);
+  d_in_Q7  : std_logic_vector(kInSize-1 downto 0);
+  val_in   : std_logic
 
-  rssi_out  : out std_logic_vector(kOutsize-1 downto 0)
+  rssi_out  : std_logic_vector(kOutsize-1 downto 0)
 
 
   );
@@ -103,14 +103,13 @@ begin
       d_sump4_Q_4567 <= (others => '0');
     elsif rising_edge(clk) then
       if val_in = '1' then
-        d_sump4_I_0123 <= resize(d_sqr_I0,2*kTruncSize+2) + resize(d_sqr_I1,2*kTruncSize+2) + resize(d_sqr_I2,2*kTruncSize+2) + resize(d_sqr_I3,2*kTruncSize+2);
-        d_sump4_I_4567 <= resize(d_sqr_I4,2*kTruncSize+2) + resize(d_sqr_I5,2*kTruncSize+2) + resize(d_sqr_I6,2*kTruncSize+2) + resize(d_sqr_I7,2*kTruncSize+2);
-        d_sump4_Q_0123 <= resize(d_sqr_Q0,2*kTruncSize+2) + resize(d_sqr_Q1,2*kTruncSize+2) + resize(d_sqr_Q2,2*kTruncSize+2) + resize(d_sqr_Q3,2*kTruncSize+2);
-        d_sump4_Q_4567 <= resize(d_sqr_Q4,2*kTruncSize+2) + resize(d_sqr_Q5,2*kTruncSize+2) + resize(d_sqr_Q6,2*kTruncSize+2) + resize(d_sqr_Q7,2*kTruncSize+2);
+        d_sump4_I_0123 <= d_sqr_I0 + d_sqr_I1 + d_sqr_I2 + d_sqr_I3;
+        d_sump4_I_4567 <= d_sqr_I4 + d_sqr_I5 + d_sqr_I6 + d_sqr_I7;
+        d_sump4_Q_0123 <= d_sqr_Q0 + d_sqr_Q1 + d_sqr_Q2 + d_sqr_Q3;
+        d_sump4_Q_4567 <= d_sqr_Q4 + d_sqr_Q5 + d_sqr_Q6 + d_sqr_Q7;
       end if;
     end if;
   end process;
-  --signal d_sump4_I_0123, d_sump4_I_4567, d_sump4_Q_0123, d_sump4_Q_4567 : signed(2*kTruncSize+1 downto 0);
 
 
   sum_p8 : process(clk, aReset)
@@ -119,11 +118,11 @@ begin
       d_sum8_IQ <= (others => '0');
     elsif rising_edge(clk) then
       if val_in = '1' then
-        d_sum8_IQ <= resize(d_sump4_I_0123,2*kTruncSize+4) +  resize(d_sump4_I_4567,2*kTruncSize+4) +  resize(d_sump4_Q_0123,2*kTruncSize+4) +  resize(d_sump4_Q_4567,2*kTruncSize+4);
+        d_sum8_IQ <= d_sump4_I_0123 +  d_sump4_I_4567 +  d_sump4_Q_0123 +  d_sump4_Q_4567;
       end if;
     end if;
   end process;
-  --signal d_sum_acc : signed(2*kTruncSize+3 downto 0);
+
 
   accumlate_8_times : process(clk, aReset)
   begin
@@ -145,13 +144,12 @@ begin
         end if;
 
         if cnt_acc = 8 then
-            rssi_out <= std_logic_vector(d_sum_acc(d_sum_acc'length-1 downto d_sum_acc'length-kOutSize));
+            rssi_out <= d_sum_acc(d_sum_acc'length-1 downto d_sum_acc'length-kOutSize);
         end if;
 
       end if;
     end if;
   end process;
-
 
 
 

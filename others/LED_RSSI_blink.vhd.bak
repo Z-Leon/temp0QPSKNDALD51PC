@@ -1,0 +1,101 @@
+---------------------------------
+-- Author  : JiangLong
+-- Date     : 201512
+-- Project  : pj051
+-- Function  : RSSI -->  LED
+-- Description  :  two LEDs
+--                 weak : 0+0   normal : blink + 0
+--                 strong : blink + 1     overflow : 1+1
+-- Ports  :
+--
+-- Problems  :
+-- History  :
+----------------------------------
+library ieee ;
+use ieee.std_logic_1164.all ;
+use ieee.numeric_std.all ;
+
+entity LED_RSSI_blink is
+generic( kInSize : positive :=8);
+port (
+  aReset   : in std_logic;
+  clk      : in std_logic;  -- 50MHz
+  RSSI_in  : in std_logic_vector(kInSize-1 downto 0);
+  val_in   : in std_logic;
+  LED_out  : out std_logic_vector(1 downto 0)
+) ;
+end entity ;
+
+architecture arch of LED_RSSI_blink is
+
+constant cnst_LED_total : integer := 50000000; -- 50M clk , 1 second
+constant cnst_LED_blink : integer := 25000000; -- 50M clk , 1 second
+
+signal cnt_led_can_change, period_LED_high, cnt_LED : integer range 0 to 50000000;
+
+signal led_can_change, led_changed : std_logic;
+
+begin
+
+led_can_change : process(clk, aReset)
+begin
+  if aReset = '1' then
+    led_can_change <= '0';
+    led_changed <= '0';
+    cnt_led_can_change <= 0;
+    period_LED_high <= 0;
+  elsif rising_edge(clk) then
+    if led_changed = '1' then
+      cnt_led_can_change <= 0;
+      led_can_change <= '0';
+    elsif  cnt_led_can_change = cnst_LED_total then -- 50M clk , 1 second
+      led_can_change <= '1';
+    else
+      cnt_led_can_change <= cnt_led_can_change + 1;
+      led_can_change <= '0';
+    end if;
+
+    if led_can_change = '1' and val_in = '1' then
+        led_changed <= '1';
+        if unsigned(RSSI_in) <= to_unsigned(1,RSSI_in'length) then
+          period_LED_high <= 0;
+          LED_out(0) <= '0';
+        elsif unsigned(RSSI_in) = to_unsigned(5,RSSI_in'length) then
+          period_LED_high <= cnst_LED_blink;
+          LED_out(0) <= '1';
+        elsif unsigned(RSSI_in) > to_unsigned(5,RSSI_in'length) then
+          period_LED_high <= cnst_LED_total;
+          LED_out(0) <= '1';
+        else
+          period_LED_high <= cnst_LED_blink;
+          LED_out(0) <= '0';
+        end if;
+    else
+        led_changed <= '0';
+    end if;
+  end if;
+end process;
+
+LED_outt1 : process(clk, aReset)
+begin
+  if aReset = '1' then
+    LED_out(1) <= '0';
+    cnt_LED <= 0;
+  elsif rising_edge(clk) then
+    if cnt_LED /= cnst_LED_total then
+      cnt_LED <= cnt_LED + 1;
+    else
+      cnt_LED <= 0;
+    end if;
+
+    if cnt_LED < period_LED_high then
+      LED_out(1) <= '1';
+    else
+      LED_out(1) <= '0';
+    end if;
+  end if;
+end process;
+
+
+
+end architecture ;
