@@ -1106,13 +1106,50 @@ generic map (n_parellel => 8,  -- num of parellel branches
 		 i_sop    => sop_decode_in,
 		 i_eop    => eop_decode_in,
 
-		 ldpc_out   => decode_out,
-		 o_val      => decode_out_val,
-		 o_sop      => open,--decode_out_sop,
-		 o_eop      => open,--decode_out_eop,
+		 ldpc_out   => decode_out_t,
+		 o_val      => decode_out_val_t,
+		 o_sop      => decode_out_sop,
+		 o_eop      => decode_out_eop,
 		 decode_succeed => open
 		 );
 
+------------  de-scrambler ---------------
+        --
+        -- decode_out XOR pn23
+        --
+        pn23_p8_pr : process( rclk, aReset )
+        begin
+          if( aReset = '1' ) then
+            pn23 <= (others => '0');
+          elsif( rising_edge(rclk) ) then
+          	if decode_out_sop='1' or decode_out_eop='1' then
+          		pn23(1) <= '1';
+          		pn23(23 downto 2) <= (others => '0');
+          	elsif decode_out_val_t='1' then
+          		pn23(23 downto 9) <= pn23(15 downto 1);
+				pn23(8 downto 1)  <= pn23(23 downto 16) xor pn23(18 downto 11);
+			else
+				pn23 <= pn23;
+			end if;
+          end if ;
+        end process ; -- pn23_p8_pr
+
+        desramb_pr : process( rclk, aReset )
+        begin
+          if( aReset = '1' ) then
+            decode_out <= (others => '0');
+            decode_out_val <= '0';
+            decode_out_descrm <= (others => '0');
+            decode_out_val_descrm <= '0';
+          elsif( rising_edge(rclk) ) then
+          	decode_out_descrm <= decode_out_t;
+          	decode_out_val_descrm <= decode_out_val_t;
+
+          	decode_out <= decode_out_descrm xor pn23(23 downto 16);
+          	decode_out_val <= decode_out_val_descrm;
+          end if ;
+        end process ; -- desramb_pr
+    ---------------------------------------------------	
 
 
 fifo_ldpcout_8to4_inst: fifo_ldpcout_8to4

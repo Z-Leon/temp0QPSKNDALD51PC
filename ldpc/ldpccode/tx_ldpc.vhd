@@ -31,8 +31,6 @@
     signal temp_o_eop  :   std_logic;
     signal t2_sop,t2_eop,t2_val :  std_logic;
     signal t2_data  , t1_data          :  std_logic_vector(7 downto 0);
-    signal t3_sop,t3_eop,t3_val :  std_logic;
-    signal t3_data             :  std_logic_vector(7 downto 0);
     signal pn23 : std_logic_vector(23 downto 0);
     
     component siggen  is 
@@ -115,67 +113,40 @@
           	
           end if ;
         end process ; -- sig_dly
-
-        sig_dly2 : process( clk, reset )
-        begin
-          if( reset = '1' ) then
-            t2_data <= (others => '0');
-            t3_val <= '0';
-            t3_sop <= '0';
-            t3_eop <= '0';
-          elsif( rising_edge(clk) ) then
-          	t2_data <= t1_data;
-          	t3_val <= t2_val;
-          	t3_sop <= t2_sop;
-          	t3_eop <= t2_eop;
-          	
-          end if ;
-        end process ; 
 		  
 		  --t1_data <= x"47";
 
-    --    --process(t1_data, i_data, pn23(23 downto 16), d_src_is_GE)
-		  --process(t1_data, i_data, d_src_is_GE)
-    --    begin
-    --    	if d_src_is_GE = '1' then
-    --    		t2_data <= i_data;-- xor pn23(23 downto 16);
-				----t2_data <= pn23(23 downto 16);
-    --    	else
-    --    		t2_data <= t1_data;-- xor pn23(23 downto 16);
-    --    	end if;
-    --    end process;
-
-            --process(t1_data, i_data, pn23(23 downto 16), d_src_is_GE)
-		  process(t2_data, i_data, d_src_is_GE)
+        process(t1_data, i_data, pn23(23 downto 16), d_src_is_GE)
         begin
         	if d_src_is_GE = '1' then
-        		t3_data <= i_data;
+        		t2_data <= i_data xor pn23(23 downto 16);
+				--t2_data <= pn23(23 downto 16);
         	else
-        		t3_data <= t2_data;
+        		t2_data <= t1_data xor pn23(23 downto 16);
         	end if;
         end process;
 
-   --     ------------  scrambler ---------------
-   --     --
-   --     -- i_data XOR pn23
-   --     --
-   --     pn23_p8_pr : process( clk, reset )
-   --     begin
-   --       if( reset = '1' ) then
-   --         pn23 <= (others => '0');
-   --       elsif( rising_edge(clk) ) then
-   --       	if t_sop='1' or t_eop='1' then
-   --       		pn23(1) <= '1';
-   --       		pn23(23 downto 2) <= (others => '0');
-   --       	elsif t_val='1' then
-   --       		pn23(23 downto 9) <= pn23(15 downto 1);
-			--	pn23(8 downto 1)  <= pn23(23 downto 16) xor pn23(18 downto 11);
-			--else
-			--	pn23 <= pn23;
-			--end if;
-   --       end if ;
-   --     end process ; -- pn23_p8_pr
-   --     ---------------------------------------------------
+        ------------  scrambler ---------------
+        --
+        -- i_data XOR pn23
+        --
+        pn23_p8_pr : process( clk, reset )
+        begin
+          if( reset = '1' ) then
+            pn23 <= (others => '0');
+          elsif( rising_edge(clk) ) then
+          	if t_sop='1' or t_eop='1' then
+          		pn23(1) <= '1';
+          		pn23(23 downto 2) <= (others => '0');
+          	elsif t_val='1' then
+          		pn23(23 downto 9) <= pn23(15 downto 1);
+				pn23(8 downto 1)  <= pn23(23 downto 16) xor pn23(18 downto 11);
+			else
+				pn23 <= pn23;
+			end if;
+          end if ;
+        end process ; -- pn23_p8_pr
+        ---------------------------------------------------
 
 
 		ldpc_enc_inst : ldpc_enc 
@@ -184,10 +155,10 @@
 			reset       =>  reset,
 			clk         =>  clk,
 	
-			ldpc_in     =>  t3_data,
-			i_sink_val  =>  t3_val,
-			i_sink_sop  =>  t3_sop,
-			i_sink_eop  =>  t3_eop,
+			ldpc_in     =>  t2_data,
+			i_sink_val  =>  t2_val,
+			i_sink_sop  =>  t2_sop,
+			i_sink_eop  =>  t2_eop,
 
 			ldpc_out   =>  o_data,
 			o_src_val  =>  temp_o_val,
